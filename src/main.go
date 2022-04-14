@@ -2,16 +2,19 @@ package main
 
 import (
 	"log"
+	configuration "mongo-util/config"
+	"mongo-util/gcp"
+	"mongo-util/mongo"
 	"os"
 )
 
-var config Config
+var config configuration.Config
 
 func init() {
 	//This is for development purpose, config.json is expected in the same dir.
-	if _, err := loadConfig("config.json"); err != nil {
+	if _, err := configuration.LoadConfig("config.json"); err != nil {
 		//Load configuration file, path can be changed according the file where it exists
-		if _, err := loadConfig("/etc/config.json"); err != nil {
+		if _, err := configuration.LoadConfig("/etc/config.json"); err != nil {
 			log.Fatalln("config.json config load error:", err)
 		}
 	}
@@ -29,7 +32,7 @@ func main() {
 	//Read project name from args and get the project id
 	args := os.Args[1:]
 	if args[0] != "" {
-		project, err := getProjectByProjectName(config.Mongo, args[0])
+		project, err := mongo.GetProjectByProjectName(config.Mongo, args[0])
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -42,7 +45,7 @@ func main() {
 
 func updateMongoUsers() {
 	//Fetch the list of mongodb users
-	users, err := getUsersByProject(config.Mongo)
+	users, err := mongo.GetUsersByProject(config.Mongo)
 	if err != nil {
 		log.Fatalln("get users:", err)
 		return
@@ -51,16 +54,17 @@ func updateMongoUsers() {
 
 	for _, userInfo := range users {
 
-		pwd := RandomString(16)
+		//Length 16 is expected
+		pwd := configuration.RandomString(16)
 		//log.Printf("Updating user %s with new password %s", result.Username, pwd)
-		if err := updatePassword(pwd, userInfo, config.Mongo); err != nil {
+		if err := mongo.UpdatePassword(pwd, userInfo, config.Mongo); err != nil {
 			log.Printf("unable to change %s password for the DB: %s", userInfo.Username, userInfo.DBName)
 			//log.Println(err)
 			continue
 		}
 
 		//Save to GCP secret manager
-		if err := saveSecret(config, userInfo, pwd); err != nil {
+		if err := gcp.SaveSecret(config, userInfo, pwd); err != nil {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
 			log.Println(err)
 		}

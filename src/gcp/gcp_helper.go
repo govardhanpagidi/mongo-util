@@ -1,4 +1,4 @@
-package main
+package gcp
 
 import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -6,11 +6,12 @@ import (
 	"fmt"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"log"
+	configuration "mongo-util/config"
 )
 
 // saveSecret adds a new secret version to the given secret with the
 // provided payload.
-func saveSecret(config Config, user MongoUser, secretStr string) error {
+func SaveSecret(config configuration.Config, user configuration.MongoUser, secretStr string) error {
 	secretId := user.ProjectID + "-" + user.Username
 	// Create the client.
 	ctx := context.Background()
@@ -72,11 +73,9 @@ func saveSecret(config Config, user MongoUser, secretStr string) error {
 	}
 
 	// Print the secret payload.
-	//
 	// WARNING: Do not print the secret in a production environment - this
 	// snippet is showing how to access the secret material.
 
-	//log.Printf("Read secret froom GCP: %s", result.Payload.Data)
-	fmt.Println("")
+	//log.Printf("Read secret from GCP: %s", result.Payload.Data)
 	return nil
 }

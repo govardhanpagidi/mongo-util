@@ -1,4 +1,4 @@
-package main
+package mongo
 
 import (
 	"encoding/json"
@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	configuration "mongo-util/config"
 	"net/http"
 )
 
-func getUsersByProject(config Mongo) ([]MongoUser, error) {
+func GetUsersByProject(config configuration.Mongo) ([]configuration.MongoUser, error) {
 	url := fmt.Sprintf("%s/groups/%s/databaseUsers", config.AtlasEndPoint, config.ProjectID)
 
-	var data UserData
+	var data configuration.UserData
 	//Make GET Call
-	resp, err := httpCall("GET", url, []byte(""), config)
+	resp, err := configuration.HttpCall("GET", url, []byte(""), config)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -39,12 +40,12 @@ func getUsersByProject(config Mongo) ([]MongoUser, error) {
 	return data.Users, err
 }
 
-func getProjectByProjectName(config Mongo, projectName string) (*Project, error) {
+func GetProjectByProjectName(config configuration.Mongo, projectName string) (*configuration.Project, error) {
 	url := fmt.Sprintf("%s/groups/byName/%s", config.AtlasEndPoint, projectName)
 
-	var project Project
+	var project configuration.Project
 	//Make GET Call
-	resp, err := httpCall("GET", url, []byte(""), config)
+	resp, err := configuration.HttpCall("GET", url, []byte(""), config)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -70,7 +71,7 @@ func getProjectByProjectName(config Mongo, projectName string) (*Project, error)
 }
 
 //Update mongo with new password for the user
-func updatePassword(pwd string, user MongoUser, config Mongo) error {
+func UpdatePassword(pwd string, user configuration.MongoUser, config configuration.Mongo) error {
 	url := fmt.Sprintf("%s/groups/%s/databaseUsers/%s/%s", config.AtlasEndPoint, config.ProjectID, user.DBName, user.Username)
 
 	//Generating payload for Atlas UpdateUser API
@@ -82,7 +83,7 @@ func updatePassword(pwd string, user MongoUser, config Mongo) error {
 	}
 
 	//Make PATCH Call
-	resp, err := httpCall(http.MethodPatch, url, data, config)
+	resp, err := configuration.HttpCall(http.MethodPatch, url, data, config)
 	if err != nil {
 		log.Fatalln("error:", err)
 		return err

@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	digest "github.com/mongodb-forks/digest"
+
 	"net/http"
 	"os"
 )
@@ -46,8 +47,8 @@ type Project struct {
 }
 
 //Load config from json file
-func loadConfig(path string) (Config, error) {
-
+func LoadConfig(path string) (Config, error) {
+	var config Config
 	configFile, err := os.Open(path)
 	defer configFile.Close()
 
@@ -60,7 +61,7 @@ func loadConfig(path string) (Config, error) {
 }
 
 //Generic HTTP client util method
-func httpCall(method, uri string, payload []byte, config Mongo) (*http.Response, error) {
+func HttpCall(method, uri string, payload []byte, config Mongo) (*http.Response, error) {
 
 	transport := digest.NewTransport(config.PublicKey, config.PrivateKey)
 	req, err := http.NewRequest(method, uri, bytes.NewReader(payload))
