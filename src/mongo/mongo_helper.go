@@ -40,8 +40,8 @@ func GetUsersByProject(config configuration.Mongo) ([]configuration.MongoUser, e
 	return data.Users, err
 }
 
-func GetProjectByProjectName(config configuration.Mongo, projectName string) (*configuration.Project, error) {
-	url := fmt.Sprintf("%s/groups/byName/%s", config.AtlasEndPoint, projectName)
+func GetProjectByProjectName(config configuration.Mongo) (*configuration.Project, error) {
+	url := fmt.Sprintf("%s/groups/byName/%s", config.AtlasEndPoint, config.ProjectName)
 
 	var project configuration.Project
 	//Make GET Call
@@ -65,12 +65,12 @@ func GetProjectByProjectName(config configuration.Mongo, projectName string) (*c
 			err = errors.New("forbidden error, suggestion: check whether this machine IP is allowed to access the MongoCLuster")
 			return nil, err
 		}
-		log.Fatalln("Mongo get users API Error:", string(body))
+		log.Fatalln("Mongo get Project Details by name API Error:", string(body))
 	}
 	return &project, err
 }
 
-//Update mongo with new password for the user
+//UpdatePassword is for updating db user password with random string
 func UpdatePassword(pwd string, user configuration.MongoUser, config configuration.Mongo) error {
 	url := fmt.Sprintf("%s/groups/%s/databaseUsers/%s/%s", config.AtlasEndPoint, config.ProjectID, user.DBName, user.Username)
 

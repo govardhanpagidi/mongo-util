@@ -11,10 +11,11 @@ import (
 var config configuration.Config
 
 func init() {
+
 	//This is for development purpose, config.json is expected in the same dir.
-	if _, err := configuration.LoadConfig("config.json"); err != nil {
+	if _, err := configuration.LoadConfig("config.json", &config); err != nil {
 		//Load configuration file, path can be changed according the file where it exists
-		if _, err := configuration.LoadConfig("/etc/config.json"); err != nil {
+		if _, err := configuration.LoadConfig("/etc/config.json", &config); err != nil {
 			log.Fatalln("config.json config load error:", err)
 		}
 	}
@@ -24,24 +25,40 @@ func init() {
 	if err != nil {
 		log.Fatalln("GCP config load error:", err)
 	}
-
 	log.Println("config loaded successfully...")
+
+	args := os.Args[1:]
+	if len(args) <= 0 || args[0] == "" {
+		log.Fatalln("ProjectName is expected as an first argument!")
+		return
+	}
+	config.Mongo.ProjectName = args[0]
 }
 
 func main() {
 	//Read project name from args and get the project id
-	args := os.Args[1:]
-	if args[0] != "" {
-		project, err := mongo.GetProjectByProjectName(config.Mongo, args[0])
-		if err != nil {
-			log.Fatalln(err)
-		}
-		log.Printf("Project Details %+v", project)
-		config.Mongo.ProjectID = project.ID
+	project, err := mongo.GetProjectByProjectName(config.Mongo)
+	if err != nil {
+		log.Fatalln(err)
 	}
+	//log.Printf("Project Details %+v", project)
 
+	//Setting projectId to config
+	config.Mongo.ProjectID = project.ID
+	//update with new password and push the same to GCP
 	updateMongoUsers()
 }
+
+//func onPremPwdUpdates() {
+//	client, ctx, _, err := mongo.Connect("mongodb://localhost:27017/")
+//	if err != nil {
+//		log.Print(err)
+//		return
+//	}
+//
+//	mongo.Ping(client, ctx)
+//
+//}
 
 func updateMongoUsers() {
 	//Fetch the list of mongodb users

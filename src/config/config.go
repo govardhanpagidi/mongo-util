@@ -19,6 +19,7 @@ type Config struct {
 
 type Mongo struct {
 	ProjectID     string `json:"project_id,omitempty"`
+	ProjectName   string `json:"project_name,omitempty"`
 	PublicKey     string `json:"pub_key,omitempty"`
 	PrivateKey    string `json:"private_key,omitempty"`
 	AtlasEndPoint string `json:"atlas_end_point,omitempty"`
@@ -46,9 +47,9 @@ type Project struct {
 	OrgID string `json:"orgId,omitempty"`
 }
 
-//Load config from json file
-func LoadConfig(path string) (Config, error) {
-	var config Config
+//LoadConfig from json file
+func LoadConfig(path string, config *Config) (*Config, error) {
+
 	configFile, err := os.Open(path)
 	defer configFile.Close()
 
@@ -60,7 +61,7 @@ func LoadConfig(path string) (Config, error) {
 	return config, err
 }
 
-//Generic HTTP client util method
+//HttpCall is a Generic HTTP client util method
 func HttpCall(method, uri string, payload []byte, config Mongo) (*http.Response, error) {
 
 	transport := digest.NewTransport(config.PublicKey, config.PrivateKey)
