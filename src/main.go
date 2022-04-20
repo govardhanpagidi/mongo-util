@@ -13,7 +13,7 @@ var config configuration.Config
 func init() {
 
 	//This is for development purpose, config.json is expected in the same dir.
-	if _, err := configuration.LoadConfig("config.json", &config); err != nil {
+	if _, err := configuration.LoadConfig("../src/config.json", &config); err != nil {
 		//Load configuration file, path can be changed according the file where it exists
 		if _, err := configuration.LoadConfig("/etc/config.json", &config); err != nil {
 			log.Fatalln("config.json config load error:", err)
