@@ -7,6 +7,6 @@
     },
     "gcp": {
         "project_id": "northern-math-346916",
-        "config_path": "gcp.json"
+        "config_path": "../src/gcp.json"
     }
 }
