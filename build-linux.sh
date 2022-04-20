@@ -27,8 +27,7 @@ then
       exit 1
     fi
 fi
-pwd
 
-go version
+env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}n
 
 echo "Build is successful."
