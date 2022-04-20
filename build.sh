@@ -14,16 +14,14 @@ cd ./src
 go env
 if [ $? -ne 0 ];
 then
+
     echo "go not found, installation started..."
     go_env="go1.17.darwin-amd64.tar.gz"
     curl -L -o go.pkg https://go.dev/dl/go1.17.${os}-${arch}.pkg
     echo "go package downloaded."
     #rm -rfv /usr/local/go
     open -S go.pkg
-
-    #tar -zxf $go_env go
-
-    #open -S go.pkg
+    
     go env
     if [ $? -ne 0 ];
     then

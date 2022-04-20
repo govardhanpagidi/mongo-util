@@ -13,7 +13,7 @@ var config configuration.Config
 func init() {
 
 	//This is for development purpose, config.json is expected in the same dir.
-	if _, err := configuration.LoadConfig("config.json", &config); err != nil {
+	if _, err := configuration.LoadConfig("../src/config.json", &config); err != nil {
 		log.Println("WARNING: config.json not found in the same directory:", err)
 		//Load configuration file, path can be changed according the file where it exists
 		if _, err := configuration.LoadConfig("/etc/config.json", &config); err != nil {
@@ -47,8 +47,7 @@ func main() {
 	//Setting projectId to config
 	config.Mongo.ProjectID = project.ID
 	//update with new password and push the same to GCP
-	//updateMongoUsers()
-	getReports()
+	updateMongoUsers()
 }
 
 func getReports() {
@@ -75,7 +74,6 @@ func getReports() {
 func updateMongoUsers() {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
-
 	if err != nil {
 		log.Fatalln("get users:", err)
 		return
@@ -98,7 +96,6 @@ func updateMongoUsers() {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
 			log.Println(err)
 		}
-		//log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
-		log.Printf("updated password for	 %s	", userInfo.Username)
+		log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
 	}
 }
