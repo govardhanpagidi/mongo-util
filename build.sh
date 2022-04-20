@@ -9,8 +9,6 @@ arch=amd64
 os=darwin
 cd ./src
 
-WORKROOT=$(pwd)
-cd ${WORKROOT}
 
 # unzip go environment
 go env
