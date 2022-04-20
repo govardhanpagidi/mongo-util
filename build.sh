@@ -14,7 +14,8 @@ cd ./src
 go env
 if [ $? -ne 0 ];
 then
-   yum install golang -y
+
+   brew install golang -y
     go env
     if [ $? -ne 0 ];
     then
