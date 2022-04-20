@@ -18,8 +18,8 @@ then
     go_env="go1.17.darwin-amd64.tar.gz"
     curl -L -o go.pkg https://go.dev/dl/go1.17.${os}-${arch}.pkg
     echo "go package downloaded."
-    rm -rfv /usr/local/go
-    open -j go.pkg
+    #rm -rfv /usr/local/go
+    open -S go.pkg
 
     #tar -zxf $go_env go
 
