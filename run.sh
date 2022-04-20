@@ -5,6 +5,6 @@ projectName=$1
 
 cd $(pwd)/src
 
-$(pwd)/mongo_util_darwin_amd64 $projectName
+$(pwd)/mongo_util_linux_amd64 $projectName
 
 echo "execution completed."
