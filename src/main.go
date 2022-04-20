@@ -96,6 +96,6 @@ func updateMongoUsers() {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
 			log.Println(err)
 		}
-		log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
+		log.Printf("updated password for	 %s		%s", userInfo.Username)
 	}
 }
