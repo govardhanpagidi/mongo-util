@@ -1,0 +1,12 @@
+cp -R ~/home/mongo-util ${JENKINS_HOME}/workspace/MongoUtil/
+
+
+cd mongo-util
+
+
+./build.sh
+
+pwd
+
+./run.sh zebra
+

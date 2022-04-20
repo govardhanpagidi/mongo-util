@@ -14,6 +14,7 @@ func init() {
 
 	//This is for development purpose, config.json is expected in the same dir.
 	if _, err := configuration.LoadConfig("config.json", &config); err != nil {
+		log.Println("WARNING: config.json not found in the same directory:", err)
 		//Load configuration file, path can be changed according the file where it exists
 		if _, err := configuration.LoadConfig("/etc/config.json", &config); err != nil {
 			log.Fatalln("config.json config load error:", err)
@@ -46,23 +47,35 @@ func main() {
 	//Setting projectId to config
 	config.Mongo.ProjectID = project.ID
 	//update with new password and push the same to GCP
-	updateMongoUsers()
+	//updateMongoUsers()
+	getReports()
 }
 
-//func onPremPwdUpdates() {
-//	client, ctx, _, err := mongo.Connect("mongodb://localhost:27017/")
-//	if err != nil {
-//		log.Print(err)
-//		return
-//	}
-//
-//	mongo.Ping(client, ctx)
-//
-//}
+func getReports() {
+	//Fetch the list of mongodb users
+	users, err := mongo.GetUsersByProject(config.Mongo)
+	if err != nil {
+		return
+	}
+
+	entries := make([][]string, len(users)+1) //+1 is for including headers in the CSV
+	entries[0] = []string{"Username", "ProjectName", "ProjectId"}
+	for ind, value := range users {
+		entries[ind+1] = []string{value.Username, config.Mongo.ProjectName, value.ProjectID}
+	}
+	err = mongo.GenerateCSV(entries, "users")
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+	log.Println("Reports generated successfully...")
+	return
+}
 
 func updateMongoUsers() {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
+
 	if err != nil {
 		log.Fatalln("get users:", err)
 		return
@@ -85,6 +98,7 @@ func updateMongoUsers() {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
 			log.Println(err)
 		}
-		log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
+		//log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
+		log.Printf("updated password for	 %s	", userInfo.Username)
 	}
 }
