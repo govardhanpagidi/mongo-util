@@ -1,21 +1,46 @@
 #!/bin/sh
 
 #archs=(amd64 arm64 ppc64le ppc64 s390x)
-archs=(amd64)
-cd src
-# go build
-for arch in ${archs[@]}
-do
-        env GOOS=linux GOARCH=${arch} go build -o mongo_util_${arch}
-done
+#archs=(amd64)
+#os=linux
 
-# Copying files to target machine
-files=(mongo_util_${arch} config.json gcp.json )
+set -x
+arch=amd64
+os=darwin
+cd ./src
 
-for file in ${files[@]}
-do
-    scp -i "~/Downloads/zebra.pem" ${file} ec2-user@ec2-54-196-226-146.compute-1.amazonaws.com:$home
-    #aws --region us-east-1 s3 cp ${file} s3://ops-test-builds/go/
-done
-cd ..
-echo "done"
+
+# unzip go environment
+go env
+if [ $? -ne 0 ];
+then
+    echo "go not found, installation started..."
+    go_env="go1.17.darwin-amd64.tar.gz"
+    curl -L -o go.pkg https://go.dev/dl/go1.17.${os}-${arch}.pkg
+    echo "go package downloaded."
+    rm -rfv /usr/local/go
+    open -j go.pkg
+
+    #tar -zxf $go_env go
+
+    #open -S go.pkg
+    go env
+    if [ $? -ne 0 ];
+    then
+        echo "fail in extract go"
+        exit 1
+    fi
+    echo "OK for extract go"
+    rm -rf $go_env
+
+    # prepare PATH, GOROOT and GOPATH
+    #export PATH=$(pwd)/go/bin:$PATH
+    export PATH=$PATH:$GOPATH/bin
+    export GOROOT=$(pwd)/go
+    export GOPATH=$(pwd)
+fi
+pwd
+
+env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
+
+echo "Build is successful."
