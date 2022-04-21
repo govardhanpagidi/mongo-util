@@ -1,12 +1,10 @@
 #!/bin/sh
 
-#archs=(amd64 arm64 ppc64le ppc64 s390x)
-#archs=(amd64)
-#os=linux
-
 set -x
+
+os=linux
 arch=amd64
-os=darwin
+
 cd ./src
 
 
