@@ -1,26 +1,18 @@
 pipeline {
     agent any
-    tools {
-        go 'go1.17'
-    }
-    environment {
-        GO111MODULE = 'on'
-        CGO_ENABLED = 0
-        GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
-    }
 
     stages {
         stage('Build') {
             steps {
-                // Get some code from a GitHub repository
-                //git url: 'https://github.com/repo/name.git'
+                            // Get some code from a GitHub repository
+                            git url: 'https://github.com/govardhanpagidi/mongo-util.git'
+                            sh "ls"
+                            sh "echo $WORKSPACE"
+                            sh "chmod +x $WORKSPACE/build-linux.sh"
+                            // Run shell script
+                            sh "$WORKSPACE/build-linux.sh"
 
-                sh "echo $WORKSPACE"
-                sh "chmod +x $WORKSPACE/build.sh"
-                // Run shell script
-                sh "$WORKSPACE/build.sh"
-
-                sh "$WORKSPACE/run.sh zebra"
+                            sh "$WORKSPACE/run.sh zebra"
             }
         }
     }
