@@ -135,7 +135,7 @@ func GetClusterInfo(config configuration.Mongo) (*configuration.ClusterInfo, err
 		}
 		log.Println(string(body))
 		//Return the status code rather error stack
-		return nil, errors.New(string(resp.StatusCode))
+		return nil, errors.New(string(resp.StatusCode) + ":" + string(body))
 	}
 
 	return &clusterInfo, err
