@@ -1,12 +1,19 @@
-cp -R ~/home/mongo-util ${JENKINS_HOME}/workspace/MongoUtil/
+pipeline {
+    agent any
 
+    stages {
+        stage('Build') {
+            steps {
+                            // Get some code from a GitHub repository
+                            git url: 'https://github.com/govardhanpagidi/mongo-util.git'
+                            sh "ls"
+                            sh "echo $WORKSPACE"
+                            sh "chmod +x $WORKSPACE/build-linux.sh"
+                            // Run shell script
+                            sh "$WORKSPACE/build-linux.sh"
 
-cd mongo-util
-
-
-./build.sh
-
-pwd
-
-./run.sh zebra
-
+                            sh "$WORKSPACE/run.sh zebra"
+            }
+        }
+    }
+}

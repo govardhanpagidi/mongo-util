@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	configuration "mongo-util/config"
 	"mongo-util/gcp"
 	"mongo-util/mongo"
 	"os"
+	"time"
 )
 
 var config configuration.Config
@@ -47,7 +49,10 @@ func main() {
 	//Setting projectId to config
 	config.Mongo.ProjectID = project.ID
 	//update with new password and push the same to GCP
-	updateMongoUsers()
+	//updateMongoUsers()
+
+	//GetCluserReports
+	getClustersReport(config.Mongo)
 }
 
 func getReports() {
@@ -69,6 +74,41 @@ func getReports() {
 	}
 	log.Println("Reports generated successfully...")
 	return
+}
+
+//ClusterColumns for quick reference  as we need to follow the same order
+var ClusterColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
+
+func getClustersReport(config configuration.Mongo) error {
+	clusterInfo, err := mongo.GetClusterInfo(config)
+	if err != nil && len(clusterInfo.Clusters) <= 0 {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(clusterInfo.Clusters)+1)
+	clusterEntries[0] = configuration.ClusterColumns
+	for ind, cluster := range clusterInfo.Clusters {
+		clusterEntries[ind+1] = []string{
+			cluster.Name,
+			cluster.GroupID,
+			cluster.ClusterType,
+			fmt.Sprintf("%f", cluster.DiskSizeGB),
+			fmt.Sprintf("%d", cluster.NumShards),
+			fmt.Sprintf("%d", cluster.ReplicationFactor),
+			cluster.CreateDate,
+			fmt.Sprintf("%t", cluster.BackupEnabled),
+			cluster.MongoDBMajorVersion,
+			cluster.MongoDBVersion,
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_ClusterInfo_%s", config.ProjectName, time.Now().String()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	log.Println("Reports generated successfully...")
+	return err
 }
 
 func updateMongoUsers() {

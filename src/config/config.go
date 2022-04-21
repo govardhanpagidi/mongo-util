@@ -11,6 +11,8 @@ import (
 	"os"
 )
 
+var ClusterColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
+
 type Config struct {
 	Mongo    Mongo `json:"mongo,omitempty"`
 	GCP      GCP   `json:"gcp,omitempty"`

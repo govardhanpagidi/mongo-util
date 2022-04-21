@@ -104,3 +104,39 @@ func UpdatePassword(pwd string, user configuration.MongoUser, config configurati
 
 	return err
 }
+
+func GetClusterInfo(config configuration.Mongo) (*configuration.ClusterInfo, error) {
+	url := fmt.Sprintf("%s/groups/%s/clusters", config.AtlasEndPoint, config.ProjectID)
+
+	//Generating payload for Atlas UpdateUser API
+	data, _ := json.Marshal(map[string]interface{}{})
+
+	//Make GET Call
+	resp, err := configuration.HttpCall(http.MethodGet, url, data, config)
+	if err != nil {
+		log.Fatalln("error:", err)
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	var clusterInfo configuration.ClusterInfo
+	if resp.StatusCode == http.StatusOK {
+		//log.Println(string(body))
+		err = json.Unmarshal(body, &clusterInfo)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		//printing the body to get more error info
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		log.Println(string(body))
+		//Return the status code rather error stack
+		return nil, errors.New(string(resp.StatusCode))
+	}
+
+	return &clusterInfo, err
+}

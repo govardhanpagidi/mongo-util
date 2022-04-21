@@ -1,0 +1,14 @@
+{
+  "type": "service_account",
+  "project_id": "northern-math-346916",
+  "private_key_id": "11d0f5f406142e248d832affcfb9ee2d953693a4",
+  "private_key": "",
+  "client_email": "zebra-169@northern-math-346916.iam.gserviceaccount.com",
+  "client_id": "102068875518667513502",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/zebra-169%40northern-math-346916.iam.gserviceaccount.com"
+}
+
+
