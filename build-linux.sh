@@ -1,49 +1,39 @@
 #!/bin/sh
 
-#archs=(amd64 arm64 ppc64le ppc64 s390x)
-#archs=(amd64)
-#os=linux
-
+projectName=$1
 set -x
+
+os=linux
 arch=amd64
-#os=linux
-os=darwin
+
 cd ./src
 
-WORKROOT=$(pwd)
-cd ${WORKROOT}
 
 # unzip go environment
+export PATH=$PATH:/usr/local/go/bin
 go env
 if [ $? -ne 0 ];
 then
-    echo "go not found, installation started..."
-    go_env="go1.17.${os}-${arch}.tar.gz"
-    curl -L -o go.pkg https://go.dev/dl/go1.17.${os}-${arch}.pkg
-    echo "go package downloaded."
-    rm -rfv /usr/local/go
-    open -j go.pkg
+    echo "go not found, installing.."
 
-    #tar -zxf $go_env go
+    wget -c https://golang.org/dl/go1.17.linux-amd64.tar.gz
+    tar -S -C /usr/local -xzf go1.17.linux-amd64.tar.gz
+    export PATH=$PATH:/usr/local/go/bin
 
-    #open -S go.pkg
     go env
     if [ $? -ne 0 ];
     then
-        echo "fail in extract go"
-        exit 1
+      echo "Problem in installing exiting.."
+      exit 1
     fi
-    echo "OK for extract go"
-    rm -rf $go_env
-
-    # prepare PATH, GOROOT and GOPATH
-    #export PATH=$(pwd)/go/bin:$PATH
-    export PATH=$PATH:$GOPATH/bin
-    export GOROOT=$(pwd)/go
-    export GOPATH=$(pwd)
 fi
-pwd
 
 env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
 
 echo "Build is successful."
+
+pwd
+
+./mongo_util_linux_amd64 ${projectName}
+
+echo "Job is executed"
