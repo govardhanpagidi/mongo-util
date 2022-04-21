@@ -26,6 +26,6 @@ then
     fi
 fi
 
-env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}n
+env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
 
 echo "Build is successful."
