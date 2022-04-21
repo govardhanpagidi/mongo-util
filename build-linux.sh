@@ -8,18 +8,13 @@ arch=amd64
 
 cd ./src
 
-
-# unzip go environment
-export PATH=$PATH:/usr/local/go/bin
 go env
 if [ $? -ne 0 ];
 then
-    echo "go not found, installing.."
-
-    wget -c https://golang.org/dl/go1.17.linux-amd64.tar.gz
-    tar -S -C /usr/local -xzf go1.17.linux-amd64.tar.gz
+    echo "setting go path."
+#    wget -c https://golang.org/dl/go1.17.linux-amd64.tar.gz
+#    tar -S -C /usr/local -xzf go1.17.linux-amd64.tar.gz
     export PATH=$PATH:/usr/local/go/bin
-
     go env
     if [ $? -ne 0 ];
     then
