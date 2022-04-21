@@ -10,6 +10,7 @@ cd ./src
 
 
 # unzip go environment
+export PATH=$PATH:/usr/local/go/bin
 go env
 if [ $? -ne 0 ];
 then
