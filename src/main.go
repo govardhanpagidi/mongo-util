@@ -7,7 +7,6 @@ import (
 	"mongo-util/gcp"
 	"mongo-util/mongo"
 	"os"
-	"time"
 )
 
 var config configuration.Config
@@ -52,7 +51,10 @@ func main() {
 	//updateMongoUsers()
 
 	//GetCluserReports
-	getClustersReport(config.Mongo)
+	//generateClustersReport(config.Mongo)
+	//mongo.ReadAggregation(config.Mongo)
+
+	generateGridFsReport(config.Mongo)
 }
 
 func getReports() {
@@ -79,7 +81,92 @@ func getReports() {
 //ClusterColumns for quick reference  as we need to follow the same order
 var ClusterColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
 
-func getClustersReport(config configuration.Mongo) error {
+func generateClustersReport(config configuration.Mongo) error {
+	clusterInfo, err := mongo.GetClusterInfo(config)
+	if err != nil && len(clusterInfo.Clusters) <= 0 {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(clusterInfo.Clusters)+1)
+	clusterEntries[0] = ClusterColumns
+	for ind, cluster := range clusterInfo.Clusters {
+		clusterEntries[ind+1] = []string{
+			cluster.Name,
+			cluster.GroupID,
+			cluster.ClusterType,
+			fmt.Sprintf("%f", cluster.DiskSizeGB),
+			fmt.Sprintf("%d", cluster.NumShards),
+			fmt.Sprintf("%d", cluster.ReplicationFactor),
+			cluster.CreateDate,
+			fmt.Sprintf("%t", cluster.BackupEnabled),
+			cluster.MongoDBMajorVersion,
+			cluster.MongoDBVersion,
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	log.Println("Reports generated successfully...")
+	return err
+}
+
+var dbColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
+
+func generateDatabaseReport(config configuration.Mongo) error {
+	dbs, err := mongo.GetDatabaseInfo(config)
+	if err != nil || dbs == nil {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(*dbs)+1)
+	clusterEntries[0] = dbColumns
+	for ind, db := range *dbs {
+		clusterEntries[ind+1] = []string{
+			db.Name,
+			fmt.Sprintf("%d", db.SizeOnDisk),
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	log.Println("Reports generated successfully...")
+	return err
+}
+
+var gridfsColumns = []string{"DBName", "ContentType", "FileCount", "TotalSize"}
+
+func generateGridFsReport(config configuration.Mongo) error {
+	gridFsList, err := mongo.GetGridFsInfoByDB(config, "test", "uploads")
+	if err != nil || gridFsList == nil {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(*gridFsList)+1)
+	clusterEntries[0] = gridfsColumns
+	for ind, data := range *gridFsList {
+		clusterEntries[ind+1] = []string{
+			data.ContentType,
+			fmt.Sprintf("%d", data.FileCount),
+			fmt.Sprintf("%d", data.TotalSize),
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	log.Println("Reports generated successfully...")
+	return err
+}
+
+func generateAggregationReport(config configuration.Mongo) error {
 	clusterInfo, err := mongo.GetClusterInfo(config)
 	if err != nil && len(clusterInfo.Clusters) <= 0 {
 		return err
@@ -102,7 +189,7 @@ func getClustersReport(config configuration.Mongo) error {
 		}
 	}
 
-	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_ClusterInfo_%s", config.ProjectName, time.Now().String()))
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
 	if err != nil {
 		log.Println("Error:", err)
 		return err

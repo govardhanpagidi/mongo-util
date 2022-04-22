@@ -1,6 +1,8 @@
 package config
 
-import "time"
+import (
+	"time"
+)
 
 type ClusterInfo struct {
 	Links []struct {
@@ -92,3 +94,28 @@ type Cluster struct {
 	StateName            string `json:"stateName"`
 	VersionReleaseSystem string `json:"versionReleaseSystem"`
 }
+
+type Aggregation struct {
+	DataSource string `json:"dataSource" :"dataSource"`
+	Database   string `json:"database" :"database"`
+	Collection string `json:"collection" :"collection"`
+	Pipeline   string `bson:"pipeline" :"pipeline"`
+}
+
+type DatabaseList struct {
+	Databases []Database `bson:"databases,omitempty"`
+}
+
+type Database struct {
+	Name       string `bson:"name,omitempty"`
+	SizeOnDisk int64  `bson:"sizeOnDisk,omitempty"`
+	Empty      bool   `bson:"empty,omitempty"`
+}
+
+type GridFsAggregation struct {
+	ContentType string `bson:"_id,omitempty"`
+	FileCount   int64  `bson:"fileCount,omitempty"`
+	TotalSize   int64  `bson:"totalSize,omitempty"`
+}
+
+//db.fs.files.aggregate([   {$group:{_id:{DOMAIN_ID:"$DOMAIN_ID", contentType:"$contentType"},totalSize:{$sum:"$length"}, fileCount:{$sum: 1}}} ])
