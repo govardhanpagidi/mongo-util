@@ -1,56 +1,52 @@
 package mongo
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	configuration "mongo-util/config"
 	"net/http"
+	"strings"
 )
 
 //This file not in use
-func ReadAggregation(config configuration.Mongo) (interface{}, error) {
-	//dataEndPoint := "https://data.mongodb-api.com/app/"
-	url := fmt.Sprintf("https://data.mongodb-api.com/app/data-lopjk/endpoint/data/beta/action/aggregate")
+func ExecuteQuery(config configuration.Mongo, query string) ([]byte, error) {
+	url := fmt.Sprintf("%s/action/aggregate", config.DataEndPoint)
+	method := "POST"
 
-	//aggrQuery := `db.fs.files.aggregate([   {$group:{_id:{DOMAIN_ID:"$DOMAIN_ID", contentType:"$contentType"},totalSize:{$sum:"$length"}, fileCount:{$sum: 1}}} ])`
-	aggrQuery := `[{ $group :{_id:{_id:"$contentType"},totalSize:{$sum:"$length"},fileCount:{$sum:1}} }]`
+	payload := strings.NewReader(query)
 
-	var queryType = configuration.Aggregation{
-		DataSource: "zebra",
-		Database:   "test",
-		Collection: "uploads",
-		Pipeline:   aggrQuery,
-	}
-	payload, _ := json.Marshal(queryType)
-	log.Println("payload:", string(payload))
-	//Make GET Call
-	resp, err := configuration.HttpCall(http.MethodPost, url, payload, config)
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Access-Control-Request-Headers", "*")
+	req.Header.Add("api-key", config.ApiKey)
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode == http.StatusOK {
-		//log.Println(string(body))
-		//err = json.Unmarshal(body, &data)
-		log.Println(string(body))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if resp.StatusCode == http.StatusForbidden {
-			err = errors.New("forbidden error, suggestion: check whether this machine IP is allowed to access the MongoCLuster")
-			return nil, err
-		}
-		log.Fatalln("Mongo data API Error:", string(body))
+	if res.StatusCode != http.StatusOK {
+		return body, errors.New(string(res.StatusCode))
 	}
-	return nil, err
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	//fmt.Println(string(body))
+	return body, err
 }
 
 func GetDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, error) {

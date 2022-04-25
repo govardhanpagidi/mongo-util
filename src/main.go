@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -36,6 +37,7 @@ const (
 	GridFSReport    = "gridfsreport"
 	UpdatePasswords = "updatepasswords"
 	ClusterReport   = "clusterreport"
+	Execute         = "execute-query"
 	Help            = "help"
 )
 
@@ -46,6 +48,7 @@ func main() {
 	projectName := flag.String("project-name", "zebra", "project name")
 	dbName := flag.String("db", "zebra", "database name")
 	collName := flag.String("collection", "zebra", "collection name")
+	query := flag.String("query", "", "query to execute")
 	flag.Parse()
 
 	if command == nil {
@@ -63,6 +66,8 @@ func main() {
 		generateGridFsReport(config.Mongo, dbName, collName)
 	case ClusterReport:
 		generateClusterDetailReport(projectName)
+	case Execute:
+		executeQuery(query)
 	case Help:
 		printHelpSection()
 	default:
@@ -311,4 +316,61 @@ func updateMongoUsers() error {
 		}
 	}
 	return err
+}
+
+func executeQuery(query *string) {
+	// Just keep it for testing..
+	//*query = `{
+	//		  	"dataSource": "zebra",
+	//		  	"database": "myFirstDatabase",
+	//			"collection":"uploads.files",
+	//		  	"pipeline":[{
+	//						"$group" : {
+	//								"_id": {"_id":"$contentType"},
+	//								"totalSize": {
+	//									"$sum": "$length"
+	//								},
+	//								"fileCount":{"$sum" : 1}
+	//						}
+	//					}
+	//				]
+	//			}`
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal([]byte(*query), &jsonMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	qryBytes, err := json.Marshal(jsonMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	result, err := mongo.ExecuteQuery(config.Mongo, string(qryBytes))
+	if err != nil {
+		log.Println("error:", err)
+		return
+	}
+	var aggregationOutput AggregateOutput
+	err = json.Unmarshal(result, &aggregationOutput)
+	fmt.Println("output:", string(result))
+
+	//Generate CSV
+	//var entries [][]string
+	//count := 0
+	//var keys []string
+	//for k := range aggregationOutput.Documents {
+	//	keys = append(keys, )
+	//}
+	//entries = append(entries, keys)
+	//for _, val := range aggregationOutput.Documents {
+	//	var values []string
+	//	for i := 0; i < len(keys); i++ {
+	//		keys =
+	//	}
+	//	entries = append(entries, values)
+	//}
+	return
+}
+
+type AggregateOutput struct {
+	Documents []map[string]interface{} `json:"documents,omitempty"`
 }
