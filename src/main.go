@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	configuration "mongo-util/config"
 	"mongo-util/gcp"
 	"mongo-util/mongo"
 	"os"
-	"time"
 )
 
 var config configuration.Config
@@ -30,31 +30,97 @@ func init() {
 	}
 	log.Println("config loaded successfully...")
 
-	args := os.Args[1:]
-	if len(args) <= 0 || args[0] == "" {
-		log.Fatalln("ProjectName is expected as an first argument!")
-		return
-	}
-	config.Mongo.ProjectName = args[0]
 }
 
+const (
+	GridFSReport    = "gridfsreport"
+	UpdatePasswords = "updatepasswords"
+	ClusterReport   = "clusterreport"
+	Help            = "help"
+)
+
 func main() {
-	//Read project name from args and get the project id
+
+	//command line arguments
+	command := flag.String("command", ClusterReport, "Operation name")
+	projectName := flag.String("project-name", "zebra", "project name")
+	dbName := flag.String("db", "zebra", "database name")
+	collName := flag.String("collection", "zebra", "collection name")
+	flag.Parse()
+
+	if command == nil {
+		log.Fatalln("enter the operation name with -command argument. eg: -command=clusterreport ")
+		return
+	}
+
+	log.Println("entered command:", *command)
+	//Read the commands and execute respective operation based on arguments
+	switch *command {
+	case UpdatePasswords:
+		updatePasswords(projectName)
+	case GridFSReport:
+		//Generate the documents/files details as a CSV report
+		generateGridFsReport(config.Mongo, dbName, collName)
+	case ClusterReport:
+		generateClusterDetailReport(projectName)
+	case Help:
+		printHelpSection()
+	default:
+		log.Fatalln("no such command", command)
+	}
+	return
+}
+
+func updatePasswords(projectName *string) {
+	if projectName == nil {
+		log.Fatalln("-project-name argument is missing the value")
+		return
+	}
+	config.Mongo.ProjectName = *projectName
+	//Get projectId for a given project name through Atlas API
+	project, err := mongo.GetProjectByProjectName(config.Mongo)
+	if err != nil {
+		log.Fatalln("GetProjectByProjectName error :", err)
+		return
+	}
+	config.Mongo.ProjectID = project.ID
+	err = updateMongoUsers()
+	if err != nil {
+		log.Fatalln("update password error:", err)
+		return
+	}
+	log.Println("passwords update successful")
+	return
+}
+
+func printHelpSection() {
+	log.Println("-command	command name, possible values are cluserreport,gridfsreport and updatepasswords ")
+	log.Println("-project-name	project name, get this value from your atlas dashboard")
+	log.Println("-db	database name")
+	log.Println("-collection	collection name")
+	return
+}
+
+func generateClusterDetailReport(projectName *string) {
+	if projectName == nil {
+		log.Fatalln("project-name argument is missing the value")
+	}
+	config.Mongo.ProjectName = *projectName
+	//Get projectId for a given project name through Atlas API
 	project, err := mongo.GetProjectByProjectName(config.Mongo)
 	if err != nil {
 		log.Fatalln(err)
+		return
 	}
-	//log.Printf("Project Details %+v", project)
-
-	//Setting projectId to config
 	config.Mongo.ProjectID = project.ID
-	//update with new password and push the same to GCP
-	//updateMongoUsers()
-
-	//GetCluserReports
-	getClustersReport(config.Mongo)
+	//Generate the cluster details as a CSV report
+	err = generateClustersReport(config.Mongo)
+	if err != nil {
+		log.Fatalln("cluster report error:", err)
+		return
+	}
+	log.Println("cluster report generated successfully")
 }
-
 func getReports() {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
@@ -79,7 +145,114 @@ func getReports() {
 //ClusterColumns for quick reference  as we need to follow the same order
 var ClusterColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
 
-func getClustersReport(config configuration.Mongo) error {
+func generateClustersReport(config configuration.Mongo) error {
+	clusterInfo, err := mongo.GetClusterInfo(config)
+	if err != nil || (clusterInfo == nil || len(clusterInfo.Clusters) <= 0) {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(clusterInfo.Clusters)+1)
+	clusterEntries[0] = ClusterColumns
+	for ind, cluster := range clusterInfo.Clusters {
+		clusterEntries[ind+1] = []string{
+			cluster.Name,
+			cluster.GroupID,
+			cluster.ClusterType,
+			fmt.Sprintf("%f", cluster.DiskSizeGB),
+			fmt.Sprintf("%d", cluster.NumShards),
+			fmt.Sprintf("%d", cluster.ReplicationFactor),
+			cluster.CreateDate,
+			fmt.Sprintf("%t", cluster.BackupEnabled),
+			cluster.MongoDBMajorVersion,
+			cluster.MongoDBVersion,
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	return err
+}
+
+var dbColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "NumShards", "ReplicationFactor", "CreatedDate", "BackupEnabled", "mongoDBMajorVersion", "mongoDBVersion"}
+
+func generateDatabaseReport(config configuration.Mongo) error {
+	dbs, err := mongo.GetDatabaseInfo(config)
+	if err != nil || dbs == nil {
+		return err
+	}
+
+	var clusterEntries = make([][]string, len(*dbs)+1)
+	clusterEntries[0] = dbColumns
+	for ind, db := range *dbs {
+		clusterEntries[ind+1] = []string{
+			db.Name,
+			fmt.Sprintf("%d", db.SizeOnDisk),
+		}
+	}
+
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("Error:", err)
+		return err
+	}
+	log.Println("Reports generated successfully...")
+	return err
+}
+
+var gridfsColumns = []string{"Database", "Collection", "ContentType", "FileCount", "TotalSize"}
+
+func generateGridFsReport(config configuration.Mongo, dbName, collectionName *string) error {
+
+	var dbNames []string
+	if dbName != nil {
+		dbNames = append(dbNames, *dbName)
+	} else {
+		dbs, err := mongo.GetDatabaseInfo(config)
+		for _, db := range *dbs {
+			if err != nil || dbs == nil {
+				return err
+			}
+			dbNames = append(dbNames, db.Name)
+		}
+	}
+
+	//If projectName provided get the report for all the databases
+	var fsEntries [][]string
+	fsEntries = append(fsEntries, gridfsColumns)
+
+	for _, dbName := range dbNames {
+		gridFsList, err := mongo.GetGridFsInfoByDB(config, dbName, collectionName)
+		if err != nil || gridFsList == nil {
+			return err
+		}
+		//Append entries
+
+		for _, data := range *gridFsList {
+			fsEntries = append(fsEntries, []string{
+				dbName,
+				data.CollectionName,
+				data.ContentType,
+				fmt.Sprintf("%d", data.FileCount),
+				fmt.Sprintf("%d", data.TotalSize),
+			})
+			//fmt.Printf("data :%s %s %s %s %s ", dbName,data.CollectionName, data.ContentType,	fmt.Sprintf("%d", data.FileCount),fmt.Sprintf("%d", data.TotalSize))
+		}
+	}
+
+	//Generate CSV
+	err := mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		log.Println("error while generating the files reports:", err)
+		return err
+	}
+	log.Println("files report generated successfully")
+	return err
+}
+
+func generateAggregationReport(config configuration.Mongo) error {
 	clusterInfo, err := mongo.GetClusterInfo(config)
 	if err != nil && len(clusterInfo.Clusters) <= 0 {
 		return err
@@ -102,7 +275,7 @@ func getClustersReport(config configuration.Mongo) error {
 		}
 	}
 
-	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_ClusterInfo_%s", config.ProjectName, time.Now().String()))
+	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
 	if err != nil {
 		log.Println("Error:", err)
 		return err
@@ -111,12 +284,12 @@ func getClustersReport(config configuration.Mongo) error {
 	return err
 }
 
-func updateMongoUsers() {
+func updateMongoUsers() error {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
 	if err != nil {
 		log.Fatalln("get users:", err)
-		return
+		return err
 	}
 	log.Printf("Total users under %s : %d", config.Mongo.ProjectID, len(users))
 
@@ -134,8 +307,8 @@ func updateMongoUsers() {
 		//Save to GCP secret manager
 		if err := gcp.SaveSecret(config, userInfo, pwd); err != nil {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
-			log.Println(err)
+			return err
 		}
-		log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
 	}
+	return err
 }

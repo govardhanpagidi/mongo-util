@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	digest "github.com/mongodb-forks/digest"
+	"time"
 
 	"net/http"
 	"os"
@@ -20,11 +21,12 @@ type Config struct {
 }
 
 type Mongo struct {
-	ProjectID     string `json:"project_id,omitempty"`
-	ProjectName   string `json:"project_name,omitempty"`
-	PublicKey     string `json:"pub_key,omitempty"`
-	PrivateKey    string `json:"private_key,omitempty"`
-	AtlasEndPoint string `json:"atlas_end_point,omitempty"`
+	ProjectID        string `json:"project_id,omitempty"`
+	ProjectName      string `json:"project_name,omitempty"`
+	PublicKey        string `json:"pub_key,omitempty"`
+	PrivateKey       string `json:"private_key,omitempty"`
+	AtlasEndPoint    string `json:"atlas_end_point,omitempty"`
+	ConnectionString string `json:"connection_string,omitempty"`
 }
 
 type GCP struct {
@@ -69,6 +71,7 @@ func HttpCall(method, uri string, payload []byte, config Mongo) (*http.Response,
 	transport := digest.NewTransport(config.PublicKey, config.PrivateKey)
 	req, err := http.NewRequest(method, uri, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+	//req.Header.Set("api-key", "JawR9f98MUaVbCEdvDlgavs3yIjIdT4YOfz7roaJVVsjZc7pTcGz9xCYn4eRCjSj")
 	res, err := transport.RoundTrip(req)
 	return res, err
 }
@@ -79,4 +82,8 @@ func RandomString(length int) string {
 	b := make([]byte, length)
 	_, _ = Rando.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func TimeNow() string {
+	return time.Now().Format(time.RFC822)
 }
