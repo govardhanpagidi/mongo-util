@@ -71,7 +71,7 @@ func HttpCall(method, uri string, payload []byte, config Mongo) (*http.Response,
 	transport := digest.NewTransport(config.PublicKey, config.PrivateKey)
 	req, err := http.NewRequest(method, uri, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("api-key", "JawR9f98MUaVbCEdvDlgavs3yIjIdT4YOfz7roaJVVsjZc7pTcGz9xCYn4eRCjSj")
+	//req.Header.Set("api-key", "JawR9f98MUaVbCEdvDlgavs3yIjIdT4YOfz7roaJVVsjZc7pTcGz9xCYn4eRCjSj")
 	res, err := transport.RoundTrip(req)
 	return res, err
 }

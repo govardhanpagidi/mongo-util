@@ -36,66 +36,91 @@ const (
 	GridFSReport    = "gridfsreport"
 	UpdatePasswords = "updatepasswords"
 	ClusterReport   = "clusterreport"
+	Help            = "help"
 )
 
 func main() {
 
+	//command line arguments
 	command := flag.String("command", ClusterReport, "Operation name")
-	projectName := flag.String("projectname", "zebra", "project name")
+	projectName := flag.String("project-name", "zebra", "project name")
+	dbName := flag.String("db", "zebra", "database name")
+	collName := flag.String("collection", "zebra", "collection name")
 	flag.Parse()
+
 	if command == nil {
 		log.Fatalln("enter the operation name with -command argument. eg: -command=clusterreport ")
 		return
 	}
 
-	//config.Mongo.ProjectName = args[0]
-	log.Println(*command)
+	log.Println("entered command:", *command)
+	//Read the commands and execute respective operation based on arguments
 	switch *command {
-	case GridFSReport:
-
-		generateGridFsReport(config.Mongo, nil, nil)
 	case UpdatePasswords:
-		if projectName == nil {
-			log.Fatalln("projectName argument is missing the value")
-		}
-		config.Mongo.ProjectName = *projectName
-		project, err := mongo.GetProjectByProjectName(config.Mongo)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		config.Mongo.ProjectID = project.ID
-		updateMongoUsers()
+		updatePasswords(projectName)
+	case GridFSReport:
+		//Generate the documents/files details as a CSV report
+		generateGridFsReport(config.Mongo, dbName, collName)
 	case ClusterReport:
-		if projectName == nil {
-			log.Fatalln("projectName argument is missing the value")
-		}
-		config.Mongo.ProjectName = *projectName
-		//Read project name from args and get the project id
-		project, err := mongo.GetProjectByProjectName(config.Mongo)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		config.Mongo.ProjectID = project.ID
-		err = generateClustersReport(config.Mongo)
-		if err != nil {
-			log.Fatalln("error:", err)
-		}
-
+		generateClusterDetailReport(projectName)
+	case Help:
+		printHelpSection()
+	default:
+		log.Fatalln("no such command", command)
 	}
-
-	//log.Printf("Project Details %+v", project)
-
-	//Setting projectId to config
-
-	//update with new password and push the same to GCP
-	//updateMongoUsers()
-
-	//GetCluserReports
-	//generateClustersReport(config.Mongo)
-	//mongo.ReadAggregation(config.Mongo)
-
+	return
 }
 
+func updatePasswords(projectName *string) {
+	if projectName == nil {
+		log.Fatalln("-project-name argument is missing the value")
+		return
+	}
+	config.Mongo.ProjectName = *projectName
+	//Get projectId for a given project name through Atlas API
+	project, err := mongo.GetProjectByProjectName(config.Mongo)
+	if err != nil {
+		log.Fatalln("GetProjectByProjectName error :", err)
+		return
+	}
+	config.Mongo.ProjectID = project.ID
+	err = updateMongoUsers()
+	if err != nil {
+		log.Fatalln("update password error:", err)
+		return
+	}
+	log.Println("passwords update successful")
+	return
+}
+
+func printHelpSection() {
+	log.Println("-command	command name, possible values are cluserreport,gridfsreport and updatepasswords ")
+	log.Println("-project-name	project name, get this value from your atlas dashboard")
+	log.Println("-db	database name")
+	log.Println("-collection	collection name")
+	return
+}
+
+func generateClusterDetailReport(projectName *string) {
+	if projectName == nil {
+		log.Fatalln("project-name argument is missing the value")
+	}
+	config.Mongo.ProjectName = *projectName
+	//Get projectId for a given project name through Atlas API
+	project, err := mongo.GetProjectByProjectName(config.Mongo)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	config.Mongo.ProjectID = project.ID
+	//Generate the cluster details as a CSV report
+	err = generateClustersReport(config.Mongo)
+	if err != nil {
+		log.Fatalln("cluster report error:", err)
+		return
+	}
+	log.Println("cluster report generated successfully")
+}
 func getReports() {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
@@ -148,7 +173,6 @@ func generateClustersReport(config configuration.Mongo) error {
 		log.Println("Error:", err)
 		return err
 	}
-	log.Println("Reports generated successfully...")
 	return err
 }
 
@@ -195,8 +219,6 @@ func generateGridFsReport(config configuration.Mongo, dbName, collectionName *st
 		}
 	}
 
-	//list of collectionNames with dbname as key pair
-	//collections := make(map[string]string)
 	//If projectName provided get the report for all the databases
 	var fsEntries [][]string
 	fsEntries = append(fsEntries, gridfsColumns)
@@ -223,10 +245,10 @@ func generateGridFsReport(config configuration.Mongo, dbName, collectionName *st
 	//Generate CSV
 	err := mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow()))
 	if err != nil {
-		log.Println("Error:", err)
+		log.Println("error while generating the files reports:", err)
 		return err
 	}
-	log.Println("Report generated successfully...")
+	log.Println("files report generated successfully")
 	return err
 }
 
@@ -262,12 +284,12 @@ func generateAggregationReport(config configuration.Mongo) error {
 	return err
 }
 
-func updateMongoUsers() {
+func updateMongoUsers() error {
 	//Fetch the list of mongodb users
 	users, err := mongo.GetUsersByProject(config.Mongo)
 	if err != nil {
 		log.Fatalln("get users:", err)
-		return
+		return err
 	}
 	log.Printf("Total users under %s : %d", config.Mongo.ProjectID, len(users))
 
@@ -285,8 +307,8 @@ func updateMongoUsers() {
 		//Save to GCP secret manager
 		if err := gcp.SaveSecret(config, userInfo, pwd); err != nil {
 			log.Printf("gcp error: while updating the user %s for the DB %s :", userInfo.Username, userInfo.DBName)
-			log.Println(err)
+			return err
 		}
-		log.Printf("updated password for	 %s		%s", userInfo.Username, pwd)
 	}
+	return err
 }

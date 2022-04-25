@@ -10,6 +10,7 @@ import (
 	"net/http"
 )
 
+//This file not in use
 func ReadAggregation(config configuration.Mongo) (interface{}, error) {
 	//dataEndPoint := "https://data.mongodb-api.com/app/"
 	url := fmt.Sprintf("https://data.mongodb-api.com/app/data-lopjk/endpoint/data/beta/action/aggregate")

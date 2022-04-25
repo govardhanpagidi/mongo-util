@@ -83,14 +83,12 @@ func getCollections(database *mongo.Database) (*[]interface{}, error) {
 	}
 
 	collRes, err := json.MarshalIndent(result, "", "	")
-	//fmt.Println("dblist b4 unmarshal:", string(collRes))
-
 	var collNames []interface{}
-
 	if err := json.Unmarshal(collRes, &collNames); err != nil {
 		fmt.Println("unmarshal err:", err)
 		return nil, err
 	}
+
 	return &collNames, err
 }
 
@@ -112,7 +110,6 @@ func getDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, err
 	}
 
 	//fmt.Printf("%+v", &res)
-	//rslt, err := bson.Marshal(res)
 	btRes, err := json.MarshalIndent(res, "", "	")
 
 	var dbList configuration.DatabaseList
