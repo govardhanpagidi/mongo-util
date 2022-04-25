@@ -113,9 +113,10 @@ type Database struct {
 }
 
 type GridFsAggregation struct {
-	ContentType string `bson:"_id,omitempty"`
-	FileCount   int64  `bson:"fileCount,omitempty"`
-	TotalSize   int64  `bson:"totalSize,omitempty"`
+	ContentType    string `bson:"_id,omitempty"`
+	FileCount      int64  `bson:"fileCount,omitempty"`
+	TotalSize      int64  `bson:"totalSize,omitempty"`
+	CollectionName string
 }
 
 //db.fs.files.aggregate([   {$group:{_id:{DOMAIN_ID:"$DOMAIN_ID", contentType:"$contentType"},totalSize:{$sum:"$length"}, fileCount:{$sum: 1}}} ])

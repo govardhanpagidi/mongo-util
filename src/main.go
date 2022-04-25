@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	configuration "mongo-util/config"
@@ -29,24 +30,63 @@ func init() {
 	}
 	log.Println("config loaded successfully...")
 
-	args := os.Args[1:]
-	if len(args) <= 0 || args[0] == "" {
-		log.Fatalln("ProjectName is expected as an first argument!")
-		return
-	}
-	config.Mongo.ProjectName = args[0]
 }
 
+const (
+	GridFSReport    = "gridfsreport"
+	UpdatePasswords = "updatepasswords"
+	ClusterReport   = "clusterreport"
+)
+
 func main() {
-	//Read project name from args and get the project id
-	project, err := mongo.GetProjectByProjectName(config.Mongo)
-	if err != nil {
-		log.Fatalln(err)
+
+	command := flag.String("command", ClusterReport, "Operation name")
+	projectName := flag.String("projectname", "zebra", "project name")
+	flag.Parse()
+	if command == nil {
+		log.Fatalln("enter the operation name with -command argument. eg: -command=clusterreport ")
+		return
 	}
+
+	//config.Mongo.ProjectName = args[0]
+	log.Println(*command)
+	switch *command {
+	case GridFSReport:
+
+		generateGridFsReport(config.Mongo, nil, nil)
+	case UpdatePasswords:
+		if projectName == nil {
+			log.Fatalln("projectName argument is missing the value")
+		}
+		config.Mongo.ProjectName = *projectName
+		project, err := mongo.GetProjectByProjectName(config.Mongo)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		config.Mongo.ProjectID = project.ID
+		updateMongoUsers()
+	case ClusterReport:
+		if projectName == nil {
+			log.Fatalln("projectName argument is missing the value")
+		}
+		config.Mongo.ProjectName = *projectName
+		//Read project name from args and get the project id
+		project, err := mongo.GetProjectByProjectName(config.Mongo)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		config.Mongo.ProjectID = project.ID
+		err = generateClustersReport(config.Mongo)
+		if err != nil {
+			log.Fatalln("error:", err)
+		}
+
+	}
+
 	//log.Printf("Project Details %+v", project)
 
 	//Setting projectId to config
-	config.Mongo.ProjectID = project.ID
+
 	//update with new password and push the same to GCP
 	//updateMongoUsers()
 
@@ -54,7 +94,6 @@ func main() {
 	//generateClustersReport(config.Mongo)
 	//mongo.ReadAggregation(config.Mongo)
 
-	generateGridFsReport(config.Mongo)
 }
 
 func getReports() {
@@ -83,7 +122,7 @@ var ClusterColumns = []string{"Name", "GroupId", "ClusterType", "DiskSizeGB", "N
 
 func generateClustersReport(config configuration.Mongo) error {
 	clusterInfo, err := mongo.GetClusterInfo(config)
-	if err != nil && len(clusterInfo.Clusters) <= 0 {
+	if err != nil || (clusterInfo == nil || len(clusterInfo.Clusters) <= 0) {
 		return err
 	}
 
@@ -139,30 +178,55 @@ func generateDatabaseReport(config configuration.Mongo) error {
 	return err
 }
 
-var gridfsColumns = []string{"DBName", "ContentType", "FileCount", "TotalSize"}
+var gridfsColumns = []string{"Database", "Collection", "ContentType", "FileCount", "TotalSize"}
 
-func generateGridFsReport(config configuration.Mongo) error {
-	gridFsList, err := mongo.GetGridFsInfoByDB(config, "test", "uploads")
-	if err != nil || gridFsList == nil {
-		return err
-	}
+func generateGridFsReport(config configuration.Mongo, dbName, collectionName *string) error {
 
-	var clusterEntries = make([][]string, len(*gridFsList)+1)
-	clusterEntries[0] = gridfsColumns
-	for ind, data := range *gridFsList {
-		clusterEntries[ind+1] = []string{
-			data.ContentType,
-			fmt.Sprintf("%d", data.FileCount),
-			fmt.Sprintf("%d", data.TotalSize),
+	var dbNames []string
+	if dbName != nil {
+		dbNames = append(dbNames, *dbName)
+	} else {
+		dbs, err := mongo.GetDatabaseInfo(config)
+		for _, db := range *dbs {
+			if err != nil || dbs == nil {
+				return err
+			}
+			dbNames = append(dbNames, db.Name)
 		}
 	}
 
-	err = mongo.GenerateCSV(clusterEntries, fmt.Sprintf("%s_clusterinfo_%s", config.ProjectName, configuration.TimeNow()))
+	//list of collectionNames with dbname as key pair
+	//collections := make(map[string]string)
+	//If projectName provided get the report for all the databases
+	var fsEntries [][]string
+	fsEntries = append(fsEntries, gridfsColumns)
+
+	for _, dbName := range dbNames {
+		gridFsList, err := mongo.GetGridFsInfoByDB(config, dbName, collectionName)
+		if err != nil || gridFsList == nil {
+			return err
+		}
+		//Append entries
+
+		for _, data := range *gridFsList {
+			fsEntries = append(fsEntries, []string{
+				dbName,
+				data.CollectionName,
+				data.ContentType,
+				fmt.Sprintf("%d", data.FileCount),
+				fmt.Sprintf("%d", data.TotalSize),
+			})
+			//fmt.Printf("data :%s %s %s %s %s ", dbName,data.CollectionName, data.ContentType,	fmt.Sprintf("%d", data.FileCount),fmt.Sprintf("%d", data.TotalSize))
+		}
+	}
+
+	//Generate CSV
+	err := mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow()))
 	if err != nil {
 		log.Println("Error:", err)
 		return err
 	}
-	log.Println("Reports generated successfully...")
+	log.Println("Report generated successfully...")
 	return err
 }
 
