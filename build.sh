@@ -1,7 +1,18 @@
 #!/bin/sh
-
-projectName=$1
 set -x
+while getopts x:p:d:c:t:k:b:r: option
+do
+  case "${option}" in
+      x) command=${OPTARG};;
+      p) project_name=${OPTARG};;
+      d) db=${OPTARG};;
+      c) cluster=${OPTARG};;
+      t) collection=${OPTARG};;
+      k) data_api_key=${OPTARG};;
+      b) atlas_pub_key=${OPTARG};;
+      r) atlas_private_key=${OPTARG};;
+  esac
+done
 
 os=darwin
 arch=amd64
@@ -34,7 +45,7 @@ echo "Build is successful."
 
 pwd
 
-./mongo_util_${os}_${arch} ${projectName}
+./mongo_util_${os}_${arch} -command="${command}" -project_name="${project_name}" -db="${db}" -cluster="${cluster}" -collection="${collection}" -data_api_key="${data_api_key}"  -atlas_pub_key="${atlas_pub_key}" -atlas_private_key="${atlas_private_key}"
 
 if [ $? -ne 0 ];
 then

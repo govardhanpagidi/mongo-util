@@ -33,10 +33,10 @@ func init() {
 
 const (
 	Command         = "command"
-	GridFSReport    = "gridfs-report"
-	UpdatePasswords = "update-passwords"
-	ClusterReport   = "cluster-report"
-	Execute         = "execute-query"
+	GridFSReport    = "gridfs_report"
+	UpdatePasswords = "update_passwords"
+	ClusterReport   = "cluster_report"
+	Execute         = "execute_query"
 	Help            = "help"
 	ProjectName     = "project_name"
 	Cluster         = "cluster"
