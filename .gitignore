@@ -4,3 +4,5 @@ util_*
 mongo_util_*
 *.csv
 vendor
+config.json
+gcp.json
