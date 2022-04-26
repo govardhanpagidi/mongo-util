@@ -34,7 +34,7 @@ then
     fi
 fi
 
-
+go mod vendor
 env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
 if [ $? -ne 0 ];
 then
