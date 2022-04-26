@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -34,21 +35,34 @@ func init() {
 }
 
 const (
+	Command         = "command"
 	GridFSReport    = "gridfsreport"
 	UpdatePasswords = "updatepasswords"
 	ClusterReport   = "clusterreport"
 	Execute         = "execute-query"
 	Help            = "help"
+	ProjectName     = "project_name"
+	Cluster         = "cluster"
+	Database        = "db"
+	Collection      = "collection"
+	AtlasPubKey     = "atlas_pub_key"
+	AtlasPrivateKey = "atlas_private_key"
+	DataApiKey      = "data_api_key"
+	Query           = "query"
 )
 
 func main() {
 
 	//command line arguments
-	command := flag.String("command", ClusterReport, "Operation name")
-	projectName := flag.String("project-name", "zebra", "project name")
-	dbName := flag.String("db", "zebra", "database name")
-	collName := flag.String("collection", "zebra", "collection name")
-	query := flag.String("query", "", "query to execute")
+	command := flag.String(Command, ClusterReport, "Operation name") //Default command is genreate-clusterdetails
+	projectName := flag.String(ProjectName, "", "project name")
+	clusterName := flag.String(Cluster, "", "database name")
+	dbName := flag.String(Database, "", "database name")
+	collName := flag.String(Collection, "", "collection name")
+	pubKey := flag.String(AtlasPubKey, "", "atlas public key")
+	privateKey := flag.String(AtlasPrivateKey, "", "atlas private key")
+	query := flag.String(Query, "", "query to execute")
+
 	flag.Parse()
 
 	if command == nil {
@@ -60,14 +74,42 @@ func main() {
 	//Read the commands and execute respective operation based on arguments
 	switch *command {
 	case UpdatePasswords:
-		updatePasswords(projectName)
+		if err := setAtlasConfig(pubKey, privateKey); err != nil {
+			log.Println(err)
+			return
+		}
+		if err := updatePasswords(projectName); err != nil {
+			log.Println(err)
+			return
+		}
 	case GridFSReport:
 		//Generate the documents/files details as a CSV report
-		generateGridFsReport(config.Mongo, dbName, collName)
+		if err := setAggregationConfig(clusterName, dbName, collName); err != nil {
+			log.Println(err)
+			return
+		}
+		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName, nil); err != nil {
+			log.Println(err)
+		}
 	case ClusterReport:
-		generateClusterDetailReport(projectName)
+		if err := setAtlasConfig(pubKey, privateKey); err != nil {
+			log.Println(err)
+			return
+		}
+		if err := generateClusterDetailReport(projectName); err != nil {
+			log.Println(err)
+			return
+		}
+
 	case Execute:
-		executeQuery(query)
+		if err := setAggregationConfig(clusterName, dbName, collName); err != nil {
+			log.Println(err)
+			return
+		}
+
+		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName, query); err != nil {
+			log.Println("main error:", err)
+		}
 	case Help:
 		printHelpSection()
 	default:
@@ -76,26 +118,48 @@ func main() {
 	return
 }
 
-func updatePasswords(projectName *string) {
+func setAtlasConfig(pubKey, privateKey *string) error {
+
+	if *pubKey == "" || *privateKey == "" {
+		return errors.New(fmt.Sprintf("%s or %s is missing, please check", AtlasPubKey, AtlasPrivateKey))
+	}
+	config.Mongo.PublicKey = *pubKey
+	config.Mongo.PrivateKey = *privateKey
+	return nil
+}
+func setDataConfig(dataApiKey *string) error {
+	//Read configs
+	if dataApiKey == nil || config.Mongo.DataEndPoint == "" {
+		return errors.New(fmt.Sprintf("%s/data_end_point is missing, please check arguments or config.json", DataApiKey))
+	}
+	config.Mongo.ApiKey = *dataApiKey
+	return nil
+}
+
+func setAggregationConfig(clusterName, dbName, collName *string) error {
+	if *clusterName == "" || *dbName == "" || *collName == "" {
+		return errors.New(fmt.Sprintf("invalid request: %s, %s, %s parameters required to generate GridFS report", Cluster, Database, Collection))
+	}
+	return nil
+}
+func updatePasswords(projectName *string) error {
 	if projectName == nil {
-		log.Fatalln("-project-name argument is missing the value")
-		return
+		return errors.New("project_name argument is missing the value")
 	}
 	config.Mongo.ProjectName = *projectName
 	//Get projectId for a given project name through Atlas API
 	project, err := mongo.GetProjectByProjectName(config.Mongo)
 	if err != nil {
 		log.Fatalln("GetProjectByProjectName error :", err)
-		return
+		return err
 	}
 	config.Mongo.ProjectID = project.ID
 	err = updateMongoUsers()
 	if err != nil {
-		log.Fatalln("update password error:", err)
-		return
+		return err
 	}
 	log.Println("passwords update successful")
-	return
+	return err
 }
 
 func printHelpSection() {
@@ -106,25 +170,24 @@ func printHelpSection() {
 	return
 }
 
-func generateClusterDetailReport(projectName *string) {
+func generateClusterDetailReport(projectName *string) error {
 	if projectName == nil {
-		log.Fatalln("project-name argument is missing the value")
+		return errors.New("project-name argument is missing the value")
 	}
 	config.Mongo.ProjectName = *projectName
 	//Get projectId for a given project name through Atlas API
 	project, err := mongo.GetProjectByProjectName(config.Mongo)
 	if err != nil {
-		log.Fatalln(err)
-		return
+		return err
 	}
 	config.Mongo.ProjectID = project.ID
 	//Generate the cluster details as a CSV report
 	err = generateClustersReport(config.Mongo)
 	if err != nil {
-		log.Fatalln("cluster report error:", err)
-		return
+		return err
 	}
 	log.Println("cluster report generated successfully")
+	return err
 }
 func getReports() {
 	//Fetch the list of mongodb users
@@ -369,6 +432,96 @@ func executeQuery(query *string) {
 	//	entries = append(entries, values)
 	//}
 	return
+}
+
+func executeGridFSQuery(config configuration.Mongo, clusterName, dbName, collectionName, query *string) error {
+	// Build query
+	defaultQuery := `{
+			  	"dataSource": "` + *clusterName + `",
+			  	"database": "` + *dbName + `",
+				"collection":"` + *collectionName + `",
+			  	"pipeline":[{
+							"$group" : {
+									"_id": "$contentType",
+									"totalSize": {
+										"$sum": "$length"
+									},
+									"fileCount":{"$sum" : 1}
+							}
+						}
+					]
+				}`
+
+	if query == nil || *query == "" {
+		query = &defaultQuery
+	}
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal([]byte(*query), &jsonMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	qryBytes, err := json.Marshal(jsonMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var dbNames []string
+	if dbName != nil {
+		dbNames = append(dbNames, *dbName)
+	} else {
+		dbs, err := mongo.GetDatabaseInfo(config)
+		if err != nil {
+			log.Println("GetDatabaseInfo error:", err)
+			return err
+		}
+		for _, db := range *dbs {
+			if err != nil || dbs == nil {
+				log.Println("for loop GetDatabaseInfo error:", err)
+
+				return err
+			}
+			dbNames = append(dbNames, db.Name)
+		}
+	}
+
+	//If projectName provided get the report for all the databases
+	var fsEntries [][]string
+	fsEntries = append(fsEntries, gridfsColumns)
+
+	for _, dbName := range dbNames {
+
+		result, err := mongo.ExecuteQuery(config, string(qryBytes))
+		if err != nil {
+			log.Println("ExecuteQuery error:", err)
+			return nil
+		}
+		fmt.Println("result:", string(result))
+		var gridFsList configuration.AggregationOutput
+		err = json.Unmarshal(result, &gridFsList)
+
+		if err != nil || gridFsList.Documents == nil {
+			return err
+		}
+		//Append entries
+
+		for _, data := range gridFsList.Documents {
+			fsEntries = append(fsEntries, []string{
+				dbName,
+				data.CollectionName,
+				data.ContentType,
+				fmt.Sprintf("%d", data.FileCount),
+				fmt.Sprintf("%d", data.TotalSize),
+			})
+			//fmt.Printf("data :%s %s %s %s %s ", dbName,data.CollectionName, data.ContentType,	fmt.Sprintf("%d", data.FileCount),fmt.Sprintf("%d", data.TotalSize))
+		}
+	}
+
+	//Generate CSV
+	if err = mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow())); err != nil {
+		return err
+	}
+	log.Println("files report generated successfully")
+	return err
 }
 
 type AggregateOutput struct {

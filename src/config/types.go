@@ -119,4 +119,15 @@ type GridFsAggregation struct {
 	CollectionName string
 }
 
+type Document struct {
+	ContentType    string `json:"_id,omitempty"`
+	FileCount      int64  `json:"fileCount,omitempty"`
+	TotalSize      int64  `json:"totalSize,omitempty"`
+	CollectionName string
+}
+
+type AggregationOutput struct {
+	Documents []Document `json:"documents,omitempty"`
+}
+
 //db.fs.files.aggregate([   {$group:{_id:{DOMAIN_ID:"$DOMAIN_ID", contentType:"$contentType"},totalSize:{$sum:"$length"}, fileCount:{$sum: 1}}} ])

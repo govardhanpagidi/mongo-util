@@ -1,12 +1,11 @@
 #!/bin/sh
 
-#archs=(amd64 arm64 ppc64le ppc64 s390x)
-#archs=(amd64)
-#os=linux
-
+projectName=$1
 set -x
-arch=amd64
+
 os=darwin
+arch=amd64
+
 cd ./src
 
 go env
@@ -24,6 +23,22 @@ then
     fi
 fi
 
-env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
 
+env GOOS=${os} GOARCH=${arch} go build -o mongo_util_${os}_${arch}
+if [ $? -ne 0 ];
+then
+  echo "Build is failed."
+  exit 1
+fi
 echo "Build is successful."
+
+pwd
+
+./mongo_util_${os}_${arch} ${projectName}
+
+if [ $? -ne 0 ];
+then
+  echo "Job execution failed"
+  exit 1
+fi
+echo "Job is executed"
