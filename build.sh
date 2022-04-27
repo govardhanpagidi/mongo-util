@@ -47,7 +47,7 @@ echo "Build is successful."
 atlas_private_key="561002ad-65b1-4ac3-90fd-600a46218a39"
 ./mongo_util_${os}_${arch} -command="${command}" -project_name="${project_name}" \
   -db="${db}" -cluster="${cluster}" -collection="${collection}" -data_api_key="${data_api_key}" \
-   -atlas_pub_key="${atlas_pub_key}" -atlas_private_key="${atlas_private_key}" -query=${query}
+   -atlas_pub_key="${atlas_pub_key}" -atlas_private_key="${atlas_private_key}" -query="${query}"
 
 if [ $? -ne 0 ];
 then
