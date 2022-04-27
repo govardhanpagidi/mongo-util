@@ -105,7 +105,7 @@ func main() {
 			return
 		}
 
-		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName, query); err != nil {
+		if err := executeQuery(query); err != nil {
 			log.Println("main error:", err)
 		}
 	case Help:

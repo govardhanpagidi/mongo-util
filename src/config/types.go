@@ -130,4 +130,8 @@ type AggregationOutput struct {
 	Documents []Document `json:"documents,omitempty"`
 }
 
+type ResultSet struct {
+	Documents []map[string]interface{} `json:"documents,omitempty"`
+}
+
 //db.fs.files.aggregate([   {$group:{_id:{DOMAIN_ID:"$DOMAIN_ID", contentType:"$contentType"},totalSize:{$sum:"$length"}, fileCount:{$sum: 1}}} ])

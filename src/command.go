@@ -241,7 +241,7 @@ func updateMongoUsers() error {
 	return err
 }
 
-func executeQuery(query *string) {
+func executeQuery(query *string) error {
 	// Just keep it for testing..
 	//*query = `{
 	//		  	"dataSource": "zebra",
@@ -261,37 +261,61 @@ func executeQuery(query *string) {
 	var jsonMap map[string]interface{}
 	err := json.Unmarshal([]byte(*query), &jsonMap)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	qryBytes, err := json.Marshal(jsonMap)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	result, err := mongo.ExecuteQuery(config.Mongo, string(qryBytes))
 	if err != nil {
-		log.Println("error:", err)
-		return
+		return err
 	}
-	var aggregationOutput configuration.AggregationOutput
+
+	//Unmarshal with map
+	var aggregationOutput configuration.ResultSet
 	err = json.Unmarshal(result, &aggregationOutput)
 	fmt.Println("output:", string(result))
 
 	//Generate CSV
-	//var entries [][]string
-	//count := 0
-	//var keys []string
-	//for k := range aggregationOutput.Documents {
-	//	keys = append(keys, )
-	//}
-	//entries = append(entries, keys)
-	//for _, val := range aggregationOutput.Documents {
-	//	var values []string
-	//	for i := 0; i < len(keys); i++ {
-	//		keys =
-	//	}
-	//	entries = append(entries, values)
-	//}
-	return
+	var entries [][]string
+
+	var keys []string
+
+	entries = append(entries, keys)
+	for ind, val := range aggregationOutput.Documents {
+		if ind == 0 {
+			for k := range aggregationOutput.Documents[ind] {
+				keys = append(keys, k)
+			}
+			entries = append(entries, keys)
+		}
+
+		var values []string
+		for key := range val {
+			reflectValue := aggregationOutput.Documents[ind][key]
+			fmt.Println("key:", key)
+			fmt.Printf("val : %+v", reflectValue)
+			fmt.Println("")
+			//switch reflect.Type(reflectValue) {
+			//case reflect.Int64, reflect.Int32:
+			//	values = append(values, strconv.FormatInt(reflectValue.Int(), 10))
+			//	fmt.Println(reflectValue.Int())
+			//case reflect.String:
+			//	values = append(values, reflectValue.String())
+			//	fmt.Println(reflectValue.String())
+			//}
+			values = append(values, fmt.Sprintf("%+v", reflectValue))
+
+		}
+		entries = append(entries, values)
+	}
+
+	//Generate CSV
+	if err = mongo.GenerateCSV(entries, fmt.Sprintf("%s_Results_%s", config.Mongo.ProjectName, configuration.TimeNow())); err != nil {
+		return err
+	}
+	return err
 }
 
 func executeGridFSQuery(config configuration.Mongo, clusterName, dbName, collectionName, query *string) error {

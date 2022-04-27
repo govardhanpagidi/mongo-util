@@ -4,8 +4,8 @@
         "pub_key": "",
         "private_key": "",
         "atlas_end_point": "https://cloud.mongodb.com/api/atlas/v1.0",
-        "connection_string": "",
-        "data_api_key": "",
+        "connection_string": "mongodb+srv://pagidi:GOXmM_UFz7-1TcVE1xLnJw@zebra.rfhmu.mongodb.net",
+        "data_api_key": "561002ad-65b1-4ac3-90fd-600a46218a39",
         "data_end_point": "https://data.mongodb-api.com/app/data-lopjk/endpoint/data/beta"
     },
     "gcp": {

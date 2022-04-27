@@ -1,6 +1,6 @@
 #!/bin/sh
 set -x
-while getopts x:p:d:c:t:k:b:r: option
+while getopts x:p:d:c:t:k:b:r:q: option
 do
   case "${option}" in
       x) command=${OPTARG};;
@@ -11,6 +11,7 @@ do
       k) data_api_key=${OPTARG};;
       b) atlas_pub_key=${OPTARG};;
       r) atlas_private_key=${OPTARG};;
+      q) query=${OPTARG}
   esac
 done
 
@@ -43,9 +44,10 @@ then
 fi
 echo "Build is successful."
 
-pwd
 atlas_private_key="561002ad-65b1-4ac3-90fd-600a46218a39"
-./mongo_util_${os}_${arch} -command="${command}" -project_name="${project_name}" -db="${db}" -cluster="${cluster}" -collection="${collection}" -data_api_key="${data_api_key}"  -atlas_pub_key="${atlas_pub_key}" -atlas_private_key="${atlas_private_key}"
+./mongo_util_${os}_${arch} -command="${command}" -project_name="${project_name}" \
+  -db="${db}" -cluster="${cluster}" -collection="${collection}" -data_api_key="${data_api_key}" \
+   -atlas_pub_key="${atlas_pub_key}" -atlas_private_key="${atlas_private_key}" -query=${query}
 
 if [ $? -ne 0 ];
 then
