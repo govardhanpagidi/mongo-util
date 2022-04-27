@@ -86,9 +86,10 @@ func main() {
 			log.Println(err)
 			return
 		}
-		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName, nil); err != nil {
+		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName); err != nil {
 			log.Println(err)
 		}
+		return
 	case ClusterReport:
 		if err := setAtlasConfig(pubKey, privateKey); err != nil {
 			log.Println(err)
@@ -111,7 +112,7 @@ func main() {
 	case Help:
 		printHelpSection()
 	default:
-		log.Fatalln("no such command", command)
+		log.Fatalln("no such command ", *command)
 	}
 	return
 }
@@ -133,8 +134,8 @@ func setAggregationConfig(clusterName, dbName, collName, dataApiKey *string) err
 	config.Mongo.ApiKey = *dataApiKey
 
 	//Validation for query params
-	if *clusterName == "" || *dbName == "" || *collName == "" {
-		return errors.New(fmt.Sprintf("invalid request: %s, %s, %s parameters required to generate GridFS report", Cluster, Database, Collection))
+	if clusterName == nil || *clusterName == "" {
+		return errors.New(fmt.Sprintf("invalid request: %s parameter required to generate GridFS report", Cluster))
 	}
 	return nil
 }

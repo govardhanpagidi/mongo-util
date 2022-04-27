@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-//This file not in use
 func ExecuteQuery(config configuration.Mongo, query string) ([]byte, error) {
 	url := fmt.Sprintf("%s/action/aggregate", config.DataEndPoint)
 	method := "POST"
@@ -50,5 +49,26 @@ func ExecuteQuery(config configuration.Mongo, query string) ([]byte, error) {
 }
 
 func GetDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, error) {
-	return getDatabaseInfo(config)
+	dbs, err := getDatabaseInfo(config)
+	if err != nil {
+		return nil, err
+	}
+	var databases []configuration.Database
+	for _, db := range *dbs {
+		//Fetch list of collections in each DB
+		if db.Name == nil {
+			continue
+		}
+		collections, err := GetCollections(config, *db.Name)
+		if err != nil {
+			return nil, err
+		}
+		for _, coll := range *collections {
+			db.Collections = append(db.Collections, coll.(string))
+		}
+
+		//Append collections to DB
+		databases = append(databases, db)
+	}
+	return &databases, err
 }

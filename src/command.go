@@ -116,7 +116,7 @@ func generateDatabaseReport(config configuration.Mongo) error {
 	clusterEntries[0] = dbColumns
 	for ind, db := range *dbs {
 		clusterEntries[ind+1] = []string{
-			db.Name,
+			*db.Name,
 			fmt.Sprintf("%d", db.SizeOnDisk),
 		}
 	}
@@ -143,7 +143,7 @@ func generateGridFsReport(config configuration.Mongo, dbName, collectionName *st
 			if err != nil || dbs == nil {
 				return err
 			}
-			dbNames = append(dbNames, db.Name)
+			dbNames = append(dbNames, *db.Name)
 		}
 	}
 
@@ -243,21 +243,21 @@ func updateMongoUsers() error {
 
 func executeQuery(query *string) error {
 	// Just keep it for testing..
-	//*query = `{
-	//		  	"dataSource": "zebra",
-	//		  	"database": "myFirstDatabase",
-	//			"collection":"uploads.files",
-	//		  	"pipeline":[{
-	//						"$group" : {
-	//								"_id": {"_id":"$contentType"},
-	//								"totalSize": {
-	//									"$sum": "$length"
-	//								},
-	//								"fileCount":{"$sum" : 1}
-	//						}
-	//					}
-	//				]
-	//			}`
+	*query = `{
+			  	"dataSource": "zebra",
+			  	"database": "myFirstDatabase",
+				"collection":"uploads.files",
+			  	"pipeline":[{
+							"$group" : {
+									"_id": "$contentType",
+									"totalSize": {
+										"$sum": "$length"
+									},
+									"fileCount":{"$sum" : 1}
+							}
+						}
+					]
+				}`
 	var jsonMap map[string]interface{}
 	err := json.Unmarshal([]byte(*query), &jsonMap)
 	if err != nil {
@@ -318,9 +318,90 @@ func executeQuery(query *string) error {
 	return err
 }
 
-func executeGridFSQuery(config configuration.Mongo, clusterName, dbName, collectionName, query *string) error {
+func executeGridFSQuery(config configuration.Mongo, clusterName, dbName, collectionName *string) error {
+
+	databases, err := getDatabasesWithCollections(config, dbName, collectionName)
+
+	var fsEntries [][]string
+	fsEntries = append(fsEntries, gridfsColumns)
+
+	for _, db := range databases {
+		for _, collection := range db.Collections {
+			query := getGridFSQuery(clusterName, db.Name, &collection)
+
+			//Make REST call to run the aggregation
+			result, err := mongo.ExecuteQuery(config, query)
+			if err != nil {
+				log.Println("ExecuteQuery error:", err)
+				return nil
+			}
+			fmt.Println("result:", string(result))
+			var gridFsList configuration.AggregationOutput
+			err = json.Unmarshal(result, &gridFsList)
+
+			if err != nil || gridFsList.Documents == nil {
+				return err
+			}
+
+			//Append entries
+			for _, data := range gridFsList.Documents {
+				fsEntries = append(fsEntries, []string{
+					*db.Name,
+					collection,
+					data.ContentType,
+					fmt.Sprintf("%d", data.FileCount),
+					fmt.Sprintf("%d", data.TotalSize),
+				})
+				//fmt.Printf("data :%s %s %s %s %s ", dbName,data.CollectionName, data.ContentType,	fmt.Sprintf("%d", data.FileCount),fmt.Sprintf("%d", data.TotalSize))
+			}
+		}
+
+	}
+
+	//Generate CSV
+	err = mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow()))
+	if err != nil {
+		return err
+	}
+	log.Println("files report generated successfully")
+	return err
+}
+
+func getDatabasesWithCollections(config configuration.Mongo, dbName, collectionName *string) (databases []configuration.Database, err error) {
+
+	//If database name is not provided consider fetching all the databases and collections in a cluster
+	if dbName == nil || *dbName == "" {
+		dbs, err := mongo.GetDatabaseInfo(config)
+		if err != nil || dbs == nil {
+			//log.Println("GetDatabaseInfo error:", err)
+			return nil, err
+		}
+		databases = *dbs
+	} else { // if database is provided
+		var collections []string
+		//database provided but not collection
+		if collectionName == nil || *collectionName == "" {
+			colls, err := mongo.GetCollections(config, *dbName)
+			if err != nil || colls == nil {
+				return nil, err
+			}
+			for _, collection := range *colls {
+				collections = append(collections, collection.(string))
+			}
+		} else { //database and collection provided
+			collections = append(collections, *collectionName)
+		}
+		//append an entry into database array since dbname is provided
+		databases = append(databases, configuration.Database{
+			Name:        dbName,
+			Collections: collections,
+		})
+	}
+	return
+}
+func getGridFSQuery(clusterName, dbName, collectionName *string) string {
 	// Build query
-	defaultQuery := `{
+	return `{
 			  	"dataSource": "` + *clusterName + `",
 			  	"database": "` + *dbName + `",
 				"collection":"` + *collectionName + `",
@@ -335,75 +416,4 @@ func executeGridFSQuery(config configuration.Mongo, clusterName, dbName, collect
 						}
 					]
 				}`
-
-	if query == nil || *query == "" {
-		query = &defaultQuery
-	}
-	var jsonMap map[string]interface{}
-	err := json.Unmarshal([]byte(*query), &jsonMap)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	qryBytes, err := json.Marshal(jsonMap)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	var dbNames []string
-	if dbName != nil {
-		dbNames = append(dbNames, *dbName)
-	} else {
-		dbs, err := mongo.GetDatabaseInfo(config)
-		if err != nil {
-			log.Println("GetDatabaseInfo error:", err)
-			return err
-		}
-		for _, db := range *dbs {
-			if err != nil || dbs == nil {
-				log.Println("for loop GetDatabaseInfo error:", err)
-
-				return err
-			}
-			dbNames = append(dbNames, db.Name)
-		}
-	}
-
-	//If projectName provided get the report for all the databases
-	var fsEntries [][]string
-	fsEntries = append(fsEntries, gridfsColumns)
-
-	for _, dbName := range dbNames {
-
-		result, err := mongo.ExecuteQuery(config, string(qryBytes))
-		if err != nil {
-			log.Println("ExecuteQuery error:", err)
-			return nil
-		}
-		fmt.Println("result:", string(result))
-		var gridFsList configuration.AggregationOutput
-		err = json.Unmarshal(result, &gridFsList)
-
-		if err != nil || gridFsList.Documents == nil {
-			return err
-		}
-		//Append entries
-
-		for _, data := range gridFsList.Documents {
-			fsEntries = append(fsEntries, []string{
-				dbName,
-				data.CollectionName,
-				data.ContentType,
-				fmt.Sprintf("%d", data.FileCount),
-				fmt.Sprintf("%d", data.TotalSize),
-			})
-			//fmt.Printf("data :%s %s %s %s %s ", dbName,data.CollectionName, data.ContentType,	fmt.Sprintf("%d", data.FileCount),fmt.Sprintf("%d", data.TotalSize))
-		}
-	}
-
-	//Generate CSV
-	if err = mongo.GenerateCSV(fsEntries, fmt.Sprintf("%s_FSINFO_%s", config.ProjectName, configuration.TimeNow())); err != nil {
-		return err
-	}
-	log.Println("files report generated successfully")
-	return err
 }

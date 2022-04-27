@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	configuration "mongo-util/config"
 	"time"
 
@@ -28,7 +27,7 @@ func GetGridFsInfoByDB(config configuration.Mongo, dbName string, collName *stri
 	if collName != nil {
 		collNames = append(collNames, *collName)
 	}
-	if names, err := getCollections(db); err == nil && names != nil && len(*names) > 0 {
+	if names, err := getCollectionsByDB(db); err == nil && names != nil && len(*names) > 0 {
 		//fmt.Printf("collections : %+v", names)
 		for _, val := range *names {
 			//fmt.Println(val.(string))
@@ -72,14 +71,15 @@ func getGridFsAggregationData(ctx context.Context, collection *mongo.Collection,
 	return &gridFsInfo, err
 }
 
-func getCollections(database *mongo.Database) (*[]interface{}, error) {
+func getCollectionsByDB(db *mongo.Database) (*[]interface{}, error) {
 
-	result, err := database.ListCollectionNames(
+	result, err := db.ListCollectionNames(
 		context.TODO(),
 		bson.D{})
 
 	if err != nil {
-		log.Fatal(err)
+		//log.Fatal(err)
+		return nil, err
 	}
 
 	collRes, err := json.MarshalIndent(result, "", "	")
@@ -90,6 +90,19 @@ func getCollections(database *mongo.Database) (*[]interface{}, error) {
 	}
 
 	return &collNames, err
+}
+
+func GetCollections(config configuration.Mongo, dbName string) (*[]interface{}, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.ConnectionString))
+	if err != nil {
+		panic(err)
+	}
+	defer client.Disconnect(ctx)
+
+	db := client.Database(dbName)
+	return getCollectionsByDB(db)
 }
 
 func getDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, error) {

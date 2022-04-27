@@ -107,9 +107,10 @@ type DatabaseList struct {
 }
 
 type Database struct {
-	Name       string `bson:"name,omitempty"`
-	SizeOnDisk int64  `bson:"sizeOnDisk,omitempty"`
-	Empty      bool   `bson:"empty,omitempty"`
+	Name        *string `bson:"name,omitempty"`
+	SizeOnDisk  int64   `bson:"sizeOnDisk,omitempty"`
+	Empty       bool    `bson:"empty,omitempty"`
+	Collections []string
 }
 
 type GridFsAggregation struct {
