@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func ExecuteQuery(config configuration.Mongo, query string) ([]byte, error) {
+func ExecuteQueryAPI(config configuration.Mongo, query string) ([]byte, error) {
 	url := fmt.Sprintf("%s/action/aggregate", config.DataEndPoint)
 	method := "POST"
 
@@ -71,4 +71,8 @@ func GetDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, err
 		databases = append(databases, db)
 	}
 	return &databases, err
+}
+
+func ExecuteQuery(config configuration.Mongo, dbName, collName *string) (*map[string]interface{}, error) {
+	return runAggregateQuery(config, dbName, collName)
 }

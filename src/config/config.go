@@ -21,14 +21,14 @@ type Config struct {
 }
 
 type Mongo struct {
-	ProjectID        string `json:"project_id,omitempty"`
-	ProjectName      string `json:"project_name,omitempty"`
-	PublicKey        string `json:"pub_key,omitempty"`
-	PrivateKey       string `json:"private_key,omitempty"`
-	AtlasEndPoint    string `json:"atlas_end_point,omitempty"`
-	ConnectionString string `json:"connection_string,omitempty"`
-	ApiKey           string `json:"data_api_key,omitempty"`
-	DataEndPoint     string `json:"data_end_point,omitempty"`
+	ProjectID        string  `json:"project_id,omitempty"`
+	ProjectName      string  `json:"project_name,omitempty"`
+	PublicKey        string  `json:"pub_key,omitempty"`
+	PrivateKey       string  `json:"private_key,omitempty"`
+	AtlasEndPoint    string  `json:"atlas_end_point,omitempty"`
+	ConnectionString *string `json:"connection_string,omitempty"`
+	ApiKey           string  `json:"data_api_key,omitempty"`
+	DataEndPoint     string  `json:"data_end_point,omitempty"`
 }
 
 type GCP struct {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
@@ -114,10 +115,13 @@ type Database struct {
 }
 
 type GridFsAggregation struct {
-	ContentType    string `bson:"_id,omitempty"`
-	FileCount      int64  `bson:"fileCount,omitempty"`
-	TotalSize      int64  `bson:"totalSize,omitempty"`
+	ContentType    primitive.ObjectID `bson:"_id,omitempty"`
+	FileCount      int64              `bson:"fileCount,omitempty"`
+	TotalSize      int64              `bson:"totalSize,omitempty"`
 	CollectionName string
+}
+type GridFsResult struct {
+	Result []GridFsAggregation
 }
 
 type Document struct {

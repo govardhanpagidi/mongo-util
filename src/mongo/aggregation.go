@@ -4,72 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"log"
 	configuration "mongo-util/config"
+	"reflect"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-func GetGridFsInfoByDB(config configuration.Mongo, dbName string, collName *string) (*[]configuration.GridFsAggregation, error) {
-
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.ConnectionString))
-	if err != nil {
-		panic(err)
-	}
-	defer client.Disconnect(ctx)
-
-	db := client.Database(dbName)
-	var collNames []string
-
-	if collName != nil {
-		collNames = append(collNames, *collName)
-	}
-	if names, err := getCollectionsByDB(db); err == nil && names != nil && len(*names) > 0 {
-		//fmt.Printf("collections : %+v", names)
-		for _, val := range *names {
-			//fmt.Println(val.(string))
-			collNames = append(collNames, val.(string))
-		}
-	}
-
-	var gridFsData []configuration.GridFsAggregation
-	for _, collName := range collNames {
-		collection := db.Collection(collName)
-		data, err := getGridFsAggregationData(ctx, collection, collName)
-		if err == nil || data != nil {
-			for _, d := range *data {
-				d.CollectionName = collName
-				gridFsData = append(gridFsData, d)
-			}
-		}
-	}
-
-	return &gridFsData, err
-}
-
-func getGridFsAggregationData(ctx context.Context, collection *mongo.Collection, collName string) (*[]configuration.GridFsAggregation, error) {
-	groupStage :=
-		bson.D{
-			{"$group", bson.D{
-				{"_id", "$contentType"},
-				{"totalSize", bson.D{{"$sum", "$length"}}},
-				{"fileCount", bson.D{{"$sum", 1}}}}}}
-
-	cursor, err := collection.Aggregate(ctx, mongo.Pipeline{groupStage})
-	var gridFsInfo []configuration.GridFsAggregation
-	//var gridFsInfo []bson.M
-	if cursor != nil {
-		if err = cursor.All(ctx, &gridFsInfo); err != nil {
-			fmt.Println("getGridFsAggregationData, cursor.All error:", err)
-			return nil, err
-		}
-	}
-	//fmt.Println(gridFsInfo)
-	return &gridFsInfo, err
-}
 
 func getCollectionsByDB(db *mongo.Database) (*[]interface{}, error) {
 
@@ -95,7 +39,7 @@ func getCollectionsByDB(db *mongo.Database) (*[]interface{}, error) {
 func GetCollections(config configuration.Mongo, dbName string) (*[]interface{}, error) {
 
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.ConnectionString))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(*config.ConnectionString))
 	if err != nil {
 		panic(err)
 	}
@@ -108,7 +52,7 @@ func GetCollections(config configuration.Mongo, dbName string) (*[]interface{}, 
 func getDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, error) {
 
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.ConnectionString))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(*config.ConnectionString))
 	if err != nil {
 		panic(err)
 	}
@@ -133,4 +77,67 @@ func getDatabaseInfo(config configuration.Mongo) (*[]configuration.Database, err
 	}
 	return &dbList.Databases, err
 
+}
+
+func runAggregateQuery(config configuration.Mongo, dbName, collName *string) (*map[string]interface{}, error) {
+
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(*config.ConnectionString))
+
+	if err != nil {
+		panic(err)
+	}
+	defer client.Disconnect(ctx)
+
+	//{
+	//	"$group" : {
+	//	"_id": "$contentType",
+	//		"totalSize": {
+	//		"$sum": "$length"
+	//	},
+	//	"fileCount":{"$sum" : 1}
+	//}
+	//}
+	aggregateStage := bson.D{
+		bson.E{Key: "$group", Value: bson.D{
+			bson.E{Key: "_id", Value: "$contentType"},
+			bson.E{Key: "fileCount", Value: bson.D{primitive.E{Key: "$sum", Value: 1}}},
+			bson.E{Key: "totalSize", Value: bson.D{primitive.E{Key: "$sum", Value: "$length"}}},
+		}}}
+
+	db := client.Database(*dbName)
+
+	cursor, err := db.Collection(*collName).Aggregate(ctx, mongo.Pipeline{aggregateStage})
+	if err != nil {
+		fmt.Println("execute error :", err)
+		return nil, err
+	}
+
+	//var gridFsres []interface{}
+	result := make(map[string]interface{})
+	for cursor.Next(ctx) {
+		var gridFsData interface{}
+		if err = cursor.Decode(&gridFsData); err != nil {
+			log.Println("cursor error:", err)
+		}
+
+		entry := gridFsData.(primitive.D)
+		//var intVal interface{}
+		for _, v := range entry {
+			log.Println(v.Key, v.Value)
+
+			if isNil(v.Value) {
+				// intVal = " "
+				result[v.Key] = ""
+				continue
+			}
+			result[v.Key] = v.Value
+		}
+	}
+	return &result, err
+}
+
+func isNil(i interface{}) bool {
+	//fmt.Println("kind:", reflect.ValueOf(i).Kind())
+	return i == nil || (reflect.ValueOf(i).Kind() == reflect.Invalid) || (reflect.ValueOf(i).Kind() == reflect.Ptr && reflect.ValueOf(i).IsNil())
 }

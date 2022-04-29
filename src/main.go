@@ -32,20 +32,21 @@ func init() {
 }
 
 const (
-	Command         = "command"
-	GridFSReport    = "gridfs_report"
-	UpdatePasswords = "update_passwords"
-	ClusterReport   = "cluster_report"
-	Execute         = "execute_query"
-	Help            = "help"
-	ProjectName     = "project_name"
-	Cluster         = "cluster"
-	Database        = "db"
-	Collection      = "collection"
-	AtlasPubKey     = "atlas_pub_key"
-	AtlasPrivateKey = "atlas_private_key"
-	DataApiKey      = "data_api_key"
-	Query           = "query"
+	Command          = "command"
+	GridFSReport     = "gridfs_report"
+	UpdatePasswords  = "update_passwords"
+	ClusterReport    = "cluster_report"
+	Execute          = "execute_query"
+	Help             = "help"
+	ProjectName      = "project_name"
+	Cluster          = "cluster"
+	Database         = "db"
+	Collection       = "collection"
+	AtlasPubKey      = "atlas_pub_key"
+	AtlasPrivateKey  = "atlas_private_key"
+	DataApiKey       = "data_api_key"
+	ConnectionString = "connection_string"
+	Query            = "query"
 )
 
 func main() {
@@ -59,6 +60,7 @@ func main() {
 	pubKey := flag.String(AtlasPubKey, "", "atlas public key")
 	privateKey := flag.String(AtlasPrivateKey, "", "atlas private key")
 	dataApiKey := flag.String(DataApiKey, "", "data api key")
+	connString := flag.String(ConnectionString, "", "Mongodb connection string")
 	query := flag.String(Query, "", "query to execute")
 
 	flag.Parse()
@@ -82,13 +84,14 @@ func main() {
 		}
 	case GridFSReport:
 		//Generate the documents/files details as a CSV report
-		if err := setAggregationConfig(clusterName, dbName, collName, dataApiKey); err != nil {
+		if err := setAggregationConfig(clusterName, dbName, collName, dataApiKey, connString); err != nil {
 			log.Println(err)
 			return
 		}
 		if err := executeGridFSQuery(config.Mongo, clusterName, dbName, collName); err != nil {
 			log.Println(err)
 		}
+
 		return
 	case ClusterReport:
 		if err := setAtlasConfig(pubKey, privateKey); err != nil {
@@ -101,7 +104,7 @@ func main() {
 		}
 
 	case Execute:
-		if err := setAggregationConfig(clusterName, dbName, collName, dataApiKey); err != nil {
+		if err := setAggregationConfig(clusterName, dbName, collName, dataApiKey, connString); err != nil {
 			log.Println(err)
 			return
 		}
@@ -109,8 +112,6 @@ func main() {
 		if err := executeQuery(query); err != nil {
 			log.Println("main error:", err)
 		}
-	case Help:
-		printHelpSection()
 	default:
 		log.Fatalln("no such command ", *command)
 	}
@@ -127,23 +128,22 @@ func setAtlasConfig(pubKey, privateKey *string) error {
 	return nil
 }
 
-func setAggregationConfig(clusterName, dbName, collName, dataApiKey *string) error {
-	if dataApiKey == nil || config.Mongo.DataEndPoint == "" {
-		return errors.New(fmt.Sprintf("%s/data_end_point is missing, please check arguments or config.json", DataApiKey))
+func setAggregationConfig(clusterName, dbName, collName, dataApiKey, connString *string) error {
+
+	if connString != nil && *connString != "" {
+		config.Mongo.ConnectionString = connString
 	}
-	config.Mongo.ApiKey = *dataApiKey
+	if config.Mongo.ConnectionString == nil || *config.Mongo.ConnectionString == "" {
+		return errors.New(fmt.Sprintf("connection string is requried"))
+	}
+
+	if dataApiKey != nil {
+		config.Mongo.ApiKey = *dataApiKey
+	}
 
 	//Validation for query params
 	if clusterName == nil || *clusterName == "" {
 		return errors.New(fmt.Sprintf("invalid request: %s parameter required to generate GridFS report", Cluster))
 	}
 	return nil
-}
-
-func printHelpSection() {
-	log.Println("-command	command name, possible values are cluserreport,gridfsreport and updatepasswords ")
-	log.Println("-project-name	project name, get this value from your atlas dashboard")
-	log.Println("-db	database name")
-	log.Println("-collection	collection name")
-	return
 }
